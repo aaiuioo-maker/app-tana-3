@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef1f4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="アプリ棚3">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon-180.png?v=1">
+<link rel="icon" href="icon-192.png?v=1">
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<title>アプリ棚3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* 1列の棚：アプリごとに1段。下に「ホーム画面に追加」の手順 */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#1d2329; --muted:#5d6872;
+  --line:#d5dbe1; --accent:#255fa6; --accent-ink:#ffffff; --chip:#e3edf9;
+  --display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif;
+  --body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#14181c; --surface:#1e2429; --ink:#e8ecef; --muted:#9aa5ae;
+  --line:#323a41; --accent:#6aa7ec; --accent-ink:#1a0d0c; --chip:#1f2c3d; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.7}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:calc(20px + env(safe-area-inset-top)) calc(48px + env(safe-area-inset-bottom));display:grid;gap:28px}
+header .top{display:flex;align-items:center;gap:6px}
+header h1{font-family:var(--display);font-size:1.9rem;margin:0;letter-spacing:.04em;line-height:1.3}
+header p{margin:6px 0 0;color:var(--muted)}
+.shelf{display:grid;gap:14px;margin:0;padding:0;list-style:none}
+.app{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;grid-template-columns:72px 1fr;gap:6px 16px;align-items:center}
+.app .ico{width:72px;height:72px;border-radius:16px;grid-row:span 2;box-shadow:0 1px 3px rgb(0 0 0 / .18)}
+.app h2{font-family:var(--display);font-size:1.15rem;margin:0;line-height:1.4;min-width:0}
+.app .desc{margin:0;color:var(--muted);font-size:.9rem;min-width:0}
+.chip{display:inline-block;background:var(--chip);color:var(--accent);font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:99px;margin-left:6px;vertical-align:2px;letter-spacing:.03em}
+.actions{grid-column:1 / -1;display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.btn{flex:1 1 140px;display:inline-flex;justify-content:center;align-items:center;min-height:44px;border-radius:12px;font:700 .95rem var(--body);text-decoration:none;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.url{grid-column:1 / -1;font-size:.78rem;color:var(--muted);word-break:break-all;user-select:all;-webkit-user-select:all}
+section.howto{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.howto h2{font-family:var(--display);font-size:1.15rem;margin:0 0 8px}
+.howto h3{font-size:.95rem;margin:14px 0 4px}
+.howto ol{margin:0;padding-left:1.4em}
+.howto li{margin:2px 0}
+.line{margin:0}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:28px 16px;text-align:center;color:var(--muted)}
+.note{color:var(--muted);font-size:.85rem;margin:12px 0 0}
+kbd{font-family:var(--body);background:var(--chip);color:var(--accent);border-radius:6px;padding:0 6px;font-weight:700}
+footer{color:var(--muted);font-size:.75rem;text-align:right}
+
+/* === Claude Code のキャラクター（ヘッダー左上） === */
+.cc-wrap { width: 62px; height: 40px; flex-shrink: 0; display: flex; justify-content: center; }
+.cc-mascot { display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; padding-top: 4px; }
+.cc-mascot svg { width: 36px; height: 27px; shape-rendering: crispEdges; overflow: visible; transform-origin: center; }
+/* 歩く・立ち止まる・手足の動きは、下のスクリプト（ccMascot）で1コマずつ動かしている */
+.cc-mascot .cc-label { font-family: -apple-system, "Segoe UI", sans-serif; font-size: 7px; letter-spacing: 0.05em; color: #d97757; opacity: 0.8; white-space: nowrap; }
+.cc-body { fill: #d97757; }
+.cc-eye { fill: #1a1612; transform-box: fill-box; transform-origin: center; }
+/* ときどきまばたき */
+.cc-eye { animation: cc-blink 4s infinite; }
+@keyframes cc-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="top">
+      <div class="cc-wrap">
+        <a class="cc-mascot" href="https://claude.com/claude-code" target="_blank" rel="noopener" title="Claude Code で作成" aria-label="Claude Code で作成">
+          <!-- 1マス＝1ドットのドット絵（横12×縦8マス：体6段＋足2段） -->
+          <svg viewBox="0 -1 12 9" aria-hidden="true">
+            <!-- 足（左から順に4本）。上げるときは高さを1マスにする -->
+            <rect class="cc-body cc-leg" x="2" y="6" width="1" height="2"/>
+            <rect class="cc-body cc-leg" x="4" y="6" width="1" height="2"/>
+            <rect class="cc-body cc-leg" x="7" y="6" width="1" height="2"/>
+            <rect class="cc-body cc-leg" x="9" y="6" width="1" height="2"/>
+            <g class="cc-hop">
+              <rect class="cc-body" x="2" y="0" width="8" height="6"/>
+              <rect class="cc-body cc-arm-l" x="0" y="2" width="2" height="2"/>
+              <rect class="cc-body cc-arm-r" x="10" y="2" width="2" height="2"/>
+              <rect class="cc-eye" x="3" y="1" width="1" height="1"/>
+              <rect class="cc-eye" x="8" y="1" width="1" height="1"/>
+            </g>
+          </svg>
+          <span class="cc-label">Claude Code</span>
+        </a>
+      </div>
+      <h1>アプリ棚3</h1>
+    </div>
+    <p>使いたいアプリを開いて、スマホのホーム画面に追加してください。登録やダウンロードは要りません。</p>
+  </header>
+
+  <ul class="shelf">
+    <li class="empty">まだアプリがありません。これから追加します。</li>
+  </ul>
+
+  <section class="howto">
+    <h2>ホーム画面に追加するには</h2>
+    <h3>iPhone（Safari）</h3>
+    <ol>
+      <li>アプリを Safari で開く</li>
+      <li>画面下の <kbd>共有</kbd>（□に↑のマーク）を押す</li>
+      <li><kbd>ホーム画面に追加</kbd> を選び、右上の「追加」を押す</li>
+    </ol>
+    <h3>Android（Chrome）</h3>
+    <ol>
+      <li>アプリを Chrome で開く</li>
+      <li>右上の <kbd>︙</kbd> を押す</li>
+      <li><kbd>ホーム画面に追加</kbd> を選び、「追加」を押す</li>
+    </ol>
+    <h3>「URLをコピー」を押したとき</h3>
+    <ol>
+      <li>「URLをコピー」を押す（ボタンに「コピーしました」と出ます）</li>
+      <li>Safari や Chrome を開き、上（または下）のアドレス欄を長押しして <kbd>ペーストして開く</kbd> を押す</li>
+      <li>アプリが開いたら、上の手順でホーム画面に追加する</li>
+    </ol>
+    <p class="line">人に送るときは、LINE やメールの入力欄を長押しして <kbd>ペースト</kbd> を押し、そのまま送ってください。コピーされる URL は LINE で開いてもブラウザで開くようになっています。</p>
+    <h3>LINE で送られてきたとき</h3>
+    <p class="line">LINE の中で開くと、ホーム画面に追加できません。右上の <kbd>︙</kbd>（iPhone は下の <kbd>共有</kbd>）から <kbd>ブラウザで開く</kbd> を選び、Chrome や Safari で開いてから追加してください。</p>
+    <p class="note">このページ（このページ）も同じやり方でホーム画面に追加できます。</p>
+  </section>
+  <footer>v1</footer>
+</div>
+
+<script>
+// URLをコピー
+document.querySelectorAll('.copy').forEach(function(b){
+  b.addEventListener('click',function(){
+    var url=b.dataset.url, label=b.textContent;
+    function done(t){b.textContent=t;setTimeout(function(){b.textContent=label},1600)}
+    function sel(){
+      var el=b.closest('.app').querySelector('.url');
+      var r=document.createRange();r.selectNodeContents(el);
+      var s=getSelection();s.removeAllRanges();s.addRange(r);
+      done('URLを選択しました');
+    }
+    try{ navigator.clipboard.writeText(url).then(function(){done('コピーしました')},sel); }catch(e){ sel(); }
+  });
+});
+// =============================================================
+// Claude Code のキャラクター（ヘッダー左上）
+//   右へ歩く → 端で立ち止まって手足をちょこちょこ動かし、振り向く → 左へ戻る … を繰り返す
+// =============================================================
+(function ccMascot() {
+  const svg = document.querySelector('.cc-mascot svg');
+  if (!svg) return;
+  const body = svg.querySelector('.cc-hop');
+  const armL = svg.querySelector('.cc-arm-l');
+  const armR = svg.querySelector('.cc-arm-r');
+  const legs = Array.from(svg.querySelectorAll('.cc-leg')); // 左から順に4本
+
+  const HALF = 12;        // 真ん中から左右それぞれに歩く幅（px）
+  const STEP = 2;         // 1歩で進む距離（px）
+  const TICK = 220;       // 1コマの長さ（ミリ秒）
+  const IDLE_TICKS = 9;   // 端で立ち止まるコマ数
+
+  let x = -HALF, dir = 1, mode = 'idle', t = 0;
+
+  const legUp = (i, up) => legs[i].setAttribute('height', up ? 1 : 2);
+  const armUp = (el, up) => el.setAttribute('y', up ? 1 : 2);
+  const bob = up => body.setAttribute('transform', up ? 'translate(0,-1)' : '');
+  const rest = () => { legs.forEach((_, i) => legUp(i, false)); armUp(armL, false); armUp(armR, false); bob(false); };
+  const draw = () => { svg.style.transform = `translateX(${x}px) scaleX(${dir})`; };
+
+  function tick() {
+    t++;
+    if (mode === 'walk') {
+      // 歩く：外側2本と内側2本の足を交互に上げ、体も小さく弾ませる
+      const ph = t % 2;
+      armUp(armL, false); armUp(armR, false);
+      legUp(0, ph === 0); legUp(2, ph === 0);
+      legUp(1, ph === 1); legUp(3, ph === 1);
+      bob(ph === 0);
+      x += STEP * dir;
+      if (x <= -HALF || x >= HALF) {
+        x = Math.max(-HALF, Math.min(HALF, x));
+        mode = 'idle'; t = 0; rest();
+      }
+    } else {
+      // 立ち止まり：両腕を交互に上げ下げし、端の足でトントンと足踏み
+      const ph = t % 4;
+      armUp(armL, ph === 1);
+      armUp(armR, ph === 3);
+      legUp(0, ph === 2);
+      legUp(3, ph === 0);
+      bob(false);
+      if (t === Math.floor(IDLE_TICKS / 2)) dir = (x >= HALF) ? -1 : 1; // 途中で振り向く
+      if (t >= IDLE_TICKS) { mode = 'walk'; t = 0; rest(); }
+    }
+    draw();
+  }
+
+  draw();
+  setInterval(tick, TICK);
+})();
+</script>
+</body>
+</html>
