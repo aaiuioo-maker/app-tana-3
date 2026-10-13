@@ -126,6 +126,581 @@ document.querySelectorAll('.copy').forEach(function(b){
     try{ navigator.clipboard.writeText(url).then(function(){done('コピーしました')},sel); }catch(e){ sel(); }
   });
 });
+// =============================================================
+// キャラクターのいろいろな動き（見本ページ https://claude.ai/artifact/L4sFgs3LjxX7Rcd4s6ugBM と同じもの）
+//   window.CC_EXTRA[番号-1].seq が [コマの絵, 長さ(ミリ秒)] の並び。パソコンを打つ合間に、ときどき入れる動きで使う
+// =============================================================
+(function ccExtraMoves() {
+// 1マス＝半ドット。体は横24×縦16マス（パソコンを打つ版と同じ大きさ）
+const O = '#d97757', K = '#1a1612', PINK = '#e8687d', CHEEK = '#f2a0a8', GOLD = '#f2c14e';
+const ZZ = () => getComputedStyle(document.documentElement).getPropertyValue('--zz').trim() || '#6f7fa8';
+
+// 小さな絵（x, y は左上）
+const zee   = (x, y, c) => [[c,x,y,3,1],[c,x+1,y+1,1,1],[c,x,y+2,3,1]];
+const heart = (x, y)    => [[PINK,x,y,2,1],[PINK,x+3,y,2,1],[PINK,x,y+1,5,1],[PINK,x+1,y+2,3,1],[PINK,x+2,y+3,1,1]];
+const ques  = (x, y)    => [[O,x,y,3,1],[O,x+2,y+1,1,1],[O,x+1,y+2,1,1],[O,x+1,y+4,1,1]];
+const note  = (x, y)    => [[O,x,y+2,2,2],[O,x+1,y-1,1,3],[O,x+2,y-1,1,1]];
+const spark = (x, y)    => [[GOLD,x+1,y,1,3],[GOLD,x,y+1,3,1]];
+const bang  = (x, y)    => [[O,x,y,1,3],[O,x,y+4,1,1]];
+const moon  = (x, y)    => [[GOLD,x+1,y,2,1],[GOLD,x,y+1,1,3],[GOLD,x+1,y+4,2,1]];
+const AQUA = '#7cc3ea', AQUA_IN = '#d6eefa', WHITE = '#f7f2ee', CAP = '#4a5fa8', QUILT = '#5b7bd5', QUILT2 = '#7d97e0';
+// はなちょうちん（s = 1〜3 の大きさ）
+function bubble(x, y, s) {
+  if (s === 1) return [[AQUA_IN,x,y,2,2],[AQUA,x,y,1,1]];
+  if (s === 2) return [[AQUA_IN,x+1,y+1,2,2],[AQUA,x+1,y,2,1],[AQUA,x,y+1,1,2],[AQUA,x+3,y+1,1,2],[AQUA,x+1,y+3,2,1],[WHITE,x+1,y+1,1,1]];
+  return [[AQUA_IN,x+1,y+1,4,4],[AQUA,x+2,y,2,1],[AQUA,x+1,y+1,1,1],[AQUA,x+4,y+1,1,1],[AQUA,x,y+2,1,2],[AQUA,x+5,y+2,1,2],
+          [AQUA,x+1,y+4,1,1],[AQUA,x+4,y+4,1,1],[AQUA,x+2,y+5,2,1],[WHITE,x+2,y+2,1,1]];
+}
+
+// キャラクター1コマを作る
+function fig(o = {}) {
+  const dx = o.dx || 0, dy = o.dy || 0, sq = o.squash || 0, top = dy + sq, r = [];
+  const R = (c, x, y, w, h) => r.push([c, x + dx, y, w, h]);
+  if (o.pillow) R(WHITE, 0, top + 1, 24, 6);                  // まくら（体の後ろ）
+  R(O, 4, top, 16, 12 - sq);                                  // 頭と体
+  const arm = (side, pose) => {                               // 腕：side=0 左 / 20 右
+    if (pose === 'hi') R(O, side, top - 3, 4, 7);             // 高く上げる
+    else if (pose === 'up') R(O, side, top, 4, 4);            // 少し上げる
+    else R(O, side, top + 4, 4, 4);                           // ふつう
+  };
+  arm(0, o.l); arm(20, o.r);
+  const lift = o.lift || [];                                  // 持ち上げる足の番号
+  if (!o.nolegs) [4, 8, 14, 18].forEach((x, i) => lift.includes(i) ? R(O, x, dy + 12, 2, 2) : R(O, x, dy + 12, 2, 4));
+  const ey = top + 2 + (sq ? 1 : 0), lk = o.look || 0;        // 目
+  const eye = (x, kind) => {
+    if (kind === 'closed') R(K, x + lk, ey + 1, 2, 1);
+    else if (kind === 'happy') { R(K, x - 1, ey + 1, 1, 1); R(K, x, ey, 2, 1); R(K, x + 2, ey + 1, 1, 1); }
+    else if (kind === 'big') R(K, x, ey - 1, 2, 3);                                  // びっくりした大きな目
+    else if (kind === 'angry') { const l = x < 12; R(K, l ? x : x + 1, ey, 1, 1); R(K, l ? x + 1 : x, ey + 1, 1, 1); R(K, x, ey + 2, 2, 1); }
+    else if (kind === 'dizzy') { [[-1,-1],[1,-1],[0,0],[-1,1],[1,1]].forEach(([a, b]) => R(K, x + 1 + a, ey + b + 1, 1, 1)); }   // ×の目
+    else R(K, x + lk, ey, 2, 2);
+  };
+  const e = o.eyes || 'open';
+  eye(6, e === 'wink' ? 'closed' : e); eye(16, e === 'wink' ? 'open' : e);
+  if (o.cheek) { R(CHEEK, 5, ey + 3, 2, 1); R(CHEEK, 17, ey + 3, 2, 1); }
+  if (o.mouth === 'open') R(K, 11, ey + 4, 2, 2);             // 口（ふだんは描かない）
+  else if (o.mouth === 'closed') R(K, 11, ey + 5, 2, 1);
+  if (o.cap) {                                                // ナイトキャップ（先がたれて、白いぽんぽん）
+    R(WHITE, 3, top - 1, 18, 2); R(CAP, 5, top - 3, 14, 2); R(CAP, 8, top - 5, 11, 2); R(CAP, 12, top - 7, 9, 2);
+    R(CAP, 19, top - 6, 3, 2); R(WHITE, 22, top - 5, 2, 2);
+  }
+  if (o.quilt) {                                              // おふとん（体の前にかける）
+    R(QUILT, -3, top + 6, 30, 16 - top - 6 + (o.dy || 0)); R(WHITE, -3, top + 6, 30, 2);
+    [[0, 10], [8, 12], [16, 10], [24, 12]].forEach(([x, y]) => R(QUILT2, x - 2, top + y, 3, 2));
+  }
+  (o.extra || []).forEach(q => r.push(q));
+  return r;
+}
+
+// 動き：[コマ, 長さ(ミリ秒)] の並び
+const MOVES = [
+  { name: 'ぴょんぴょん', desc: 'しゃがんでから、元気にジャンプ', seq: [
+    [fig(), 700], [fig({ squash: 2 }), 140], [fig({ dy: -3, l: 'up', r: 'up' }), 80], [fig({ dy: -7, l: 'up', r: 'up', lift: [0,1,2,3] }), 140],
+    [fig({ dy: -8, l: 'hi', r: 'hi', eyes: 'happy', lift: [0,1,2,3] }), 160], [fig({ dy: -7, l: 'up', r: 'up' }), 100], [fig({ dy: -3 }), 80],
+    [fig({ squash: 2 }), 140], [fig(), 260], [fig({ squash: 2 }), 120], [fig({ dy: -4, l: 'up', r: 'up', lift: [0,1,2,3] }), 120],
+    [fig({ dy: -5, l: 'up', r: 'up', eyes: 'happy', lift: [0,1,2,3] }), 140], [fig({ dy: -3 }), 90], [fig({ squash: 2 }), 140], [fig(), 600] ] },
+
+  { name: '手をふる', desc: 'にっこりして、バイバイ', seq: (() => {
+    const s = [[fig(), 700], [fig({ eyes: 'happy', cheek: true, r: 'up' }), 160]];
+    for (let i = 0; i < 6; i++) s.push([fig({ eyes: 'happy', cheek: true, r: i % 2 ? 'up' : 'hi' }), 190]);
+    s.push([fig({ eyes: 'happy', cheek: true }), 400], [fig(), 500]); return s; })() },
+
+  { name: 'おやすみ', desc: '目をとじて、すうすう。Zが浮かぶ', seq: (() => {
+    const s = [];
+    for (let i = 0; i < 8; i++) {
+      const ex = [];
+      ex.push(...zee(22, -2 - (i % 4) * 2, ZZ()));
+      if (i % 4 >= 2) ex.push(...zee(26, -9 - (i % 4 - 2) * 2, ZZ()));
+      s.push([fig({ eyes: 'closed', squash: i % 2, extra: ex }), 480]);
+    }
+    return s; })() },
+
+  { name: 'ハート', desc: 'まばたきしてから、ハートがぽわん', seq: [
+    [fig(), 900], [fig({ eyes: 'closed' }), 120], [fig(), 300],
+    [fig({ eyes: 'happy', cheek: true, extra: heart(10, -5) }), 220], [fig({ eyes: 'happy', cheek: true, dy: -1, extra: heart(10, -7) }), 220],
+    [fig({ eyes: 'happy', cheek: true, extra: heart(10, -9) }), 220], [fig({ eyes: 'happy', cheek: true, dy: -1, extra: heart(10, -11) }), 260],
+    [fig({ eyes: 'happy', cheek: true, extra: [...heart(5, -13), ...heart(15, -12)] }), 320], [fig({ eyes: 'happy', cheek: true }), 500], [fig(), 400] ] },
+
+  { name: 'きょろきょろ', desc: '左右を見て、はてな？', seq: [
+    [fig(), 600], [fig({ look: -1 }), 450], [fig({ look: 1 }), 450], [fig({ look: -1 }), 260], [fig({ look: 1 }), 260], [fig(), 250],
+    [fig({ r: 'up', extra: ques(21, -8) }), 200], [fig({ r: 'up', dy: -1, extra: ques(21, -9) }), 900], [fig(), 500] ] },
+
+  { name: 'ダンス', desc: '音符に合わせて、左右にステップ', seq: (() => {
+    const s = [[fig(), 500]];
+    for (let i = 0; i < 8; i++) {
+      const a = i % 2 === 0;
+      s.push([fig({ dx: a ? -1 : 1, l: a ? 'hi' : 'side', r: a ? 'side' : 'hi', lift: a ? [0, 2] : [1, 3], eyes: 'happy',
+        extra: note(a ? 24 : -4, -6 - (i % 3)) }), 260]);
+    }
+    s.push([fig(), 500]); return s; })() },
+
+  { name: 'やったー', desc: '両手を上げて、キラキラ', seq: (() => {
+    const s = [[fig(), 600], [fig({ squash: 1 }), 120]];
+    for (let i = 0; i < 6; i++) {
+      const a = i % 2 === 0;
+      s.push([fig({ dy: a ? -2 : 0, l: 'hi', r: 'hi', eyes: 'happy', cheek: true,
+        extra: a ? [...spark(-3, -4), ...spark(25, -2)] : [...spark(-2, 2), ...spark(24, -7)] }), 220]);
+    }
+    s.push([fig({ eyes: 'happy' }), 400], [fig(), 400]); return s; })() },
+];
+
+// おやすみのパターン
+const SLEEPS = [
+  { name: 'こっくりこっくり', desc: 'うとうと…はっ！と起きて、また眠る', seq: [
+    [fig(), 700], [fig({ eyes: 'closed' }), 500], [fig(), 250], [fig({ eyes: 'closed' }), 600],
+    [fig({ eyes: 'closed', squash: 1 }), 500], [fig({ eyes: 'closed', squash: 2 }), 700],
+    [fig({ dy: -1, extra: bang(22, -7) }), 500], [fig({ look: -1 }), 300], [fig({ look: 1 }), 300], [fig(), 400],
+    [fig({ eyes: 'closed' }), 500], [fig({ eyes: 'closed', squash: 1 }), 500], [fig({ eyes: 'closed', squash: 2, extra: zee(22, -3, ZZ()) }), 900] ] },
+
+  { name: 'おふとん', desc: 'まくらとおふとんで、ぐっすり', seq: (() => {
+    const s = [];
+    for (let i = 0; i < 8; i++) {
+      const ex = zee(22, -3 - (i % 4) * 2, ZZ());
+      if (i % 4 >= 2) ex.push(...zee(26, -10 - (i % 4 - 2) * 2, ZZ()));
+      s.push([fig({ eyes: 'closed', pillow: true, quilt: true, squash: i % 2, extra: ex }), 520]);
+    }
+    return s; })() },
+
+  { name: 'はなちょうちん', desc: 'ちょうちんがふくらんで…パチン！', seq: (() => {
+    const s = [];
+    for (let k = 0; k < 2; k++) {
+      s.push([fig({ eyes: 'closed', extra: bubble(13, 7, 1) }), 450], [fig({ eyes: 'closed', squash: 1, extra: bubble(13, 8, 1) }), 450]);
+      s.push([fig({ eyes: 'closed', extra: bubble(13, 6, 2) }), 450], [fig({ eyes: 'closed', squash: 1, extra: bubble(13, 7, 1) }), 450]);
+    }
+    s.push([fig({ eyes: 'closed', extra: bubble(13, 6, 2) }), 450], [fig({ eyes: 'closed', extra: bubble(12, 5, 3) }), 700],
+      [fig({ dy: -2, l: 'up', r: 'up', extra: [...bang(22, -9), [AQUA, 10, 3, 1, 1], [AQUA, 19, 4, 1, 1], [AQUA, 15, 1, 1, 1]] }), 450],
+      [fig({ look: -1 }), 300], [fig({ look: 1 }), 300], [fig({ eyes: 'closed' }), 600]);
+    return s; })() },
+
+  { name: 'ナイトキャップ', desc: 'ぼうしをかぶって、お月さまと星', seq: (() => {
+    const s = [];
+    for (let i = 0; i < 8; i++) {
+      const ex = [...moon(-6, -13), ...(i % 2 ? spark(26, -12) : spark(-2, -4)), ...(i % 4 < 2 ? spark(24, 2) : [])];
+      s.push([fig({ eyes: 'closed', cap: true, squash: i % 2, extra: ex }), 560]);
+    }
+    return s; })() },
+];
+
+// ごはんの絵
+const RICE = '#fbf8f2', NORI = '#2f3b2f', BOWL = '#c94b3c', NOODLE = '#f2d36b', STICK = '#8b5a2b', STEAM = '#c9c2bc',
+      SPONGE = '#f3d9a4', BERRY = '#e0475b', LEAF = '#5aa35a', TEA = '#6b9a5b', TEA_IN = '#b7d48a';
+function onigiri(x, y, bite) {                                // bite 0=まるごと 1=ひとくち 2=はんぶん 3=ひとかけ
+  if (bite >= 3) return [[RICE, x + 2, y + 3, 2, 1], [NORI, x + 2, y + 4, 2, 1]];
+  if (bite === 2) return [[RICE, x + 3, y + 2, 3, 1], [RICE, x + 5, y + 3, 1, 1], [NORI, x + 3, y + 3, 2, 2]];
+  if (bite === 1) return [[RICE, x + 3, y + 1, 2, 1], [RICE, x + 1, y + 2, 5, 2], [NORI, x + 1, y + 3, 4, 2]];
+  return [[RICE, x + 2, y, 2, 1], [RICE, x + 1, y + 1, 4, 1], [RICE, x, y + 2, 6, 2], [NORI, x + 1, y + 3, 4, 2]];
+}
+function ramen(x, y, left) {                                  // どんぶり（left＝残りの量 2〜0）
+  const r = [[BOWL, x, y + 1, 14, 2], [BOWL, x + 1, y + 3, 12, 1], [BOWL, x + 3, y + 4, 8, 1], [RICE, x, y + 2, 14, 1]];
+  if (left > 0) r.push([NOODLE, x + 1, y, 12, 1]);
+  if (left > 1) r.push([NOODLE, x + 3, y - 1, 3, 1], [NOODLE, x + 8, y - 1, 3, 1]);
+  return r;
+}
+const steam = (x, y, k) => [[STEAM, x + (k % 2), y, 1, 2], [STEAM, x + 1 - (k % 2), y - 2, 1, 2], [STEAM, x + 4 - (k % 2), y - 1, 1, 2], [STEAM, x + 3 + (k % 2), y - 3, 1, 2]];
+function cake(x, y, left) {                                   // ショートケーキ（left＝残りの幅 3〜0、いちごはberryがtrueのとき）
+  const r = [[RICE, x - 1, y + 5, 10, 1]];                    // おさら
+  const w = [0, 3, 5, 8][left];
+  if (w) r.push([RICE, x, y + 1, w, 1], [SPONGE, x, y + 2, w, 3], [RICE, x, y + 3, w, 1]);
+  return r;
+}
+const berry = (x, y) => [[BERRY, x, y, 2, 2], [LEAF, x, y - 1, 2, 1]];
+const cup = (x, y) => [[TEA, x, y, 4, 5], [TEA_IN, x, y, 4, 1], [RICE, x + 1, y + 2, 2, 1]];
+
+// ごはんのパターン
+const FOODS = [
+  { name: 'おにぎり', desc: 'パクッ、もぐもぐ…ぜんぶ食べて、にっこり', seq: (() => {
+    const s = [[fig({ mouth: 'closed', extra: onigiri(15, 8, 0) }), 700]];
+    for (let b = 0; b < 3; b++) {
+      s.push([fig({ r: 'up', mouth: 'open', extra: onigiri(12, 5, b) }), 260]);
+      s.push([fig({ r: 'up', mouth: 'closed', extra: onigiri(12, 5, b + 1) }), 160]);
+      for (let c = 0; c < 3; c++) s.push([fig({ eyes: 'happy', mouth: c % 2 ? 'open' : 'closed', squash: c % 2, extra: onigiri(15, 8, b + 1) }), 200]);
+    }
+    s.push([fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: heart(18, -5) }), 800], [fig({ eyes: 'happy', cheek: true }), 400]);
+    return s; })() },
+
+  { name: 'ラーメン', desc: 'ゆげの立つラーメンを、ずずっとすする', seq: (() => {
+    const s = [];
+    for (let k = 0; k < 3; k++) s.push([fig({ extra: [...ramen(5, 11, 2), ...steam(10, 7 - k, k)] }), 300]);
+    for (let n = 0; n < 2; n++) {
+      s.push([fig({ r: 'up', mouth: 'open', extra: [...ramen(5, 11, 2 - n), [NOODLE, 12, 7, 1, 4], [STICK, 21, 0, 1, 7], [STICK, 23, 1, 1, 7]] }), 300]);
+      s.push([fig({ eyes: 'closed', r: 'up', mouth: 'open', extra: [...ramen(5, 11, 2 - n), [NOODLE, 12, 8, 1, 3]] }), 180]);
+      s.push([fig({ eyes: 'closed', mouth: 'closed', extra: [...ramen(5, 11, 1 - n)] }), 200]);
+      for (let c = 0; c < 2; c++) s.push([fig({ eyes: 'happy', mouth: c ? 'open' : 'closed', squash: c, extra: [...ramen(5, 11, 1 - n), ...steam(10, 6, c)] }), 220]);
+    }
+    s.push([fig({ eyes: 'happy', cheek: true, l: 'up', r: 'up', extra: ramen(5, 11, 0) }), 900]);
+    return s; })() },
+
+  { name: 'ショートケーキ', desc: 'キラキラ目で、いちごは最後にパクッ', seq: (() => {
+    const s = [[fig({ extra: [...cake(8, 9, 3), ...berry(11, 9)] }), 600],
+               [fig({ eyes: 'happy', extra: [...cake(8, 9, 3), ...berry(11, 9), ...spark(-2, -2), ...spark(24, -4)] }), 600]];
+    for (let left = 3; left > 0; left--) {
+      s.push([fig({ r: 'up', mouth: 'open', extra: [...cake(8, 9, left), ...berry(11, 9)] }), 240]);
+      s.push([fig({ eyes: 'happy', mouth: 'closed', extra: [...cake(8, 9, left - 1), ...berry(11, 9)] }), 200]);
+      s.push([fig({ eyes: 'happy', mouth: 'open', squash: 1, extra: [...cake(8, 9, left - 1), ...berry(11, 9)] }), 200]);
+    }
+    s.push([fig({ r: 'up', mouth: 'open', extra: [...cake(8, 9, 0), ...berry(11, 6)] }), 300],
+           [fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: cake(8, 9, 0) }), 300],
+           [fig({ eyes: 'happy', cheek: true, extra: [...cake(8, 9, 0), ...heart(9, -6)] }), 900]);
+    return s; })() },
+
+  { name: 'お茶', desc: 'あったかいお茶で、ほっとひと息', seq: (() => {
+    const s = [];
+    for (let k = 0; k < 2; k++) s.push([fig({ extra: [...cup(14, 8), ...steam(14, 5 - k, k)] }), 400]);
+    s.push([fig({ r: 'up', eyes: 'closed', extra: [...cup(11, 5), ...steam(11, 2, 0)] }), 500],
+           [fig({ r: 'up', eyes: 'closed', squash: 1, extra: [...cup(11, 6), ...steam(11, 3, 1)] }), 600],
+           [fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: cup(14, 8) }), 400],
+           [fig({ eyes: 'happy', cheek: true, mouth: 'open', extra: [...cup(14, 8), [STEAM, 13, 4, 2, 1], [STEAM, 15, 3, 2, 1]] }), 500],
+           [fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: cup(14, 8) }), 900]);
+    return s; })() },
+];
+
+// ── ごはん（追加の10パターン） ──
+const DOUGH = '#d9a066', ICING = '#f29bb6', HOLE = '#a8743f', SPRINK = '#7cc3ea', CONE = '#e0b26a', CONE_D = '#b9874a',
+      MELON = '#e2474f', RIND = '#4f9a4a', RIND_IN = '#eef3dc', TAKO = '#c98a4a', SAUCE = '#6b3a1f', TRAY = '#d8c19a',
+      BUN = '#e2a55a', LETTUCE = '#7cc36a', PATTY = '#7a4a2a', CHEESE = '#f5c542', APPLE = '#d8433f', PIZZA = '#f5d26b',
+      PEPPER = '#c0392b', YAKI = '#9a5b2e', PUDDING = '#f6dc8a', CARAMEL = '#9c5a1e', SPOON = '#c9ccd3', BANANA = '#f4d35e', BANANA_IN = '#fbefc4';
+// 食べたぶんを切り取る（side='left' は左から、'top' は上から）
+function trim(rects, side, edge) {
+  return rects.flatMap(([c, x, y, w, h]) => {
+    if (side === 'left') { if (x + w <= edge) return []; const nx = Math.max(x, edge); return [[c, nx, y, w - (nx - x), h]]; }
+    if (y + h <= edge) return []; const ny = Math.max(y, edge); return [[c, x, ny, w, h - (ny - y)]];
+  });
+}
+const donut = (x, y) => [[DOUGH,x+1,y,4,1],[DOUGH,x,y+1,6,4],[DOUGH,x+1,y+5,4,1],[ICING,x+1,y,4,1],[ICING,x,y+1,6,2],[HOLE,x+2,y+2,2,2],[SPRINK,x+1,y+1,1,1],[RICE,x+4,y,1,1],[SPRINK,x+4,y+2,1,1]];
+const softcream = (x, y) => [[RICE,x+2,y,1,1],[RICE,x+1,y+1,3,1],[RICE,x,y+2,5,2],[STEAM,x+1,y+3,3,1],[CONE,x,y+4,5,1],[CONE,x+1,y+5,3,2],[CONE,x+2,y+7,1,1],[CONE_D,x+1,y+4,1,1],[CONE_D,x+3,y+4,1,1]];
+const melon = (x, y) => [[MELON,x+3,y,2,1],[MELON,x+1,y+1,6,1],[MELON,x,y+2,8,1],[RIND_IN,x,y+3,8,1],[RIND,x,y+4,8,1],[NORI,x+4,y+1,1,1],[NORI,x+2,y+2,1,1],[NORI,x+5,y+2,1,1]];
+const burger = (x, y) => [[BUN,x+1,y,5,1],[BUN,x,y+1,7,1],[RICE,x+2,y,1,1],[RICE,x+4,y,1,1],[LETTUCE,x,y+2,7,1],[CHEESE,x,y+3,7,1],[PATTY,x,y+4,7,1],[BUN,x,y+5,7,1],[BUN,x+1,y+6,5,1]];
+const apple = (x, y) => [[APPLE,x+1,y+1,4,1],[APPLE,x,y+2,6,3],[APPLE,x+1,y+5,4,1],[STICK,x+3,y,1,1],[LEAF,x+4,y-1,2,1],[RICE,x+1,y+2,1,1]];
+const pizza = (x, y) => [[PIZZA,x+4,y,2,1],[PIZZA,x+2,y+1,4,1],[PIZZA,x,y+2,6,2],[PIZZA,x+2,y+4,4,1],[PIZZA,x+4,y+5,2,1],[DOUGH,x+6,y,1,6],[PEPPER,x+3,y+2,1,1],[PEPPER,x+4,y+4,1,1],[PEPPER,x+5,y+1,1,1]];
+const banana = (x, y) => [[BANANA_IN,x+1,y,2,5],[BANANA,x,y+5,4,3],[BANANA,x-1,y+4,1,2],[BANANA,x+4,y+4,1,2],[CONE_D,x+1,y+8,2,1]];
+const pudding = (x, y, s) => { const r = [[RICE,x-1,y+6,8,1]]; const top = y + [0, 2, 4, 6][s];
+  return r.concat(trim([[CARAMEL,x+1,y,4,2],[PUDDING,x,y+2,6,4]], 'top', top)); };
+const takoyaki = (x, y, s) => { const r = [[TRAY,x,y+3,10,1],[TRAY,x+1,y+4,8,1]];
+  for (let i = s; i < 3; i++) r.push([TAKO,x+i*3+1,y,3,3],[SAUCE,x+i*3+1,y,3,1],[RICE,x+i*3+2,y,1,1],[LEAF,x+i*3+3,y+1,1,1]);
+  return r; };
+const yakitori = (x, y, s) => { const r = [[TRAY,x,y+1,11,1]];
+  for (let i = s; i < 3; i++) r.push([YAKI,x+i*3+1,y,2,3],[SAUCE,x+i*3+1,y,2,1]);
+  return r; };
+
+// 手で持って食べる：持つ → 口へ → パクッ → もぐもぐ（bites 回）→ ごちそうさま
+function eatHeld(sprite, W, H, side, end, extraEnd = []) {
+  const at = (x, y, b) => b <= 0 ? sprite(x, y) : trim(sprite(x, y), side, side === 'left' ? x + Math.round(W * b / 3) : y + Math.round(H * b / 3));
+  const rx = 16, ry = 9 - Math.max(0, H - 6), mx = 13, my = 7 - Math.round(H / 2);
+  const s = [[fig({ mouth: 'closed', extra: at(rx, ry, 0) }), 650]];
+  for (let b = 0; b < 3; b++) {
+    s.push([fig({ r: 'up', mouth: 'open', extra: at(mx, my, b) }), 260]);
+    s.push([fig({ r: 'up', mouth: 'closed', extra: at(mx, my, b + 1) }), 160]);
+    for (let c = 0; c < 3; c++) s.push([fig({ eyes: 'happy', mouth: c % 2 ? 'open' : 'closed', squash: c % 2, extra: at(rx, ry, b + 1) }), 190]);
+  }
+  s.push([fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: [...end, ...extraEnd] }), 900], [fig({ eyes: 'happy', cheek: true }), 400]);
+  return s;
+}
+// お皿のまま食べる：ひと口ぶん（morsel）だけ口へ運ぶ
+function eatPlate(plate, morsel, end) {
+  const s = [[fig({ extra: plate(0) }), 650], [fig({ eyes: 'happy', extra: [...plate(0), ...spark(-2, -2), ...spark(24, -3)] }), 450]];
+  for (let b = 0; b < 3; b++) {
+    s.push([fig({ r: 'up', mouth: 'open', extra: [...plate(b + 1), ...morsel] }), 280]);
+    s.push([fig({ r: 'up', mouth: 'closed', extra: plate(b + 1) }), 160]);
+    for (let c = 0; c < 3; c++) s.push([fig({ eyes: 'happy', mouth: c % 2 ? 'open' : 'closed', squash: c % 2, extra: plate(b + 1) }), 190]);
+  }
+  s.push([fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: [...plate(3), ...end] }), 900], [fig({ eyes: 'happy', cheek: true }), 400]);
+  return s;
+}
+const FOODS2 = [
+  { name: 'ドーナツ', desc: 'ピンクのドーナツを、ひと口ずつ', seq: eatHeld(donut, 6, 6, 'left', heart(9, -6)) },
+  { name: 'ソフトクリーム', desc: 'てっぺんから、ぱくぱく。最後はコーンまで', seq: eatHeld(softcream, 5, 8, 'top', [...spark(-2, -3), ...spark(24, -5)]) },
+  { name: 'すいか', desc: 'しゃくしゃく食べて、たねをぷっ', seq: (() => { const s = eatHeld(melon, 8, 5, 'left', [], []);
+      s.splice(s.length - 2, 0, [fig({ mouth: 'open', extra: [[NORI, 9, 7, 1, 1]] }), 160], [fig({ mouth: 'closed', extra: [[NORI, 4, 6, 1, 1]] }), 160], [fig({ eyes: 'wink', extra: [[NORI, -3, 5, 1, 1]] }), 260]);
+      return s; })() },
+  { name: 'たこやき', desc: 'あつあつを、ひとつずつ。ハフハフ', seq: eatPlate(s => takoyaki(5, 11, s), [[TAKO, 12, 5, 3, 3], [SAUCE, 12, 5, 3, 1], ...steam(12, 2, 0)], [...steam(6, 7, 1)]) },
+  { name: 'ハンバーガー', desc: '大きなハンバーガーに、がぶっ', seq: eatHeld(burger, 7, 7, 'left', heart(9, -6)) },
+  { name: 'りんご', desc: 'まっかなりんごを、しゃりしゃり', seq: eatHeld(apple, 6, 6, 'left', [[STICK, 18, 9, 1, 3], ...spark(24, -4)]) },
+  { name: 'ピザ', desc: 'とがったほうから、チーズをのばして', seq: (() => { const s = eatHeld(pizza, 7, 6, 'left', heart(9, -6));
+      s.forEach(q => { if (q[1] === 160) q[0].push([PIZZA, 13, 7, 3, 1]); });   // パクッのとき、チーズがのびる
+      return s; })() },
+  { name: 'やきとり', desc: 'くしから、ひとつずつ引っこぬく', seq: eatPlate(s => yakitori(6, 12, s), [[YAKI, 12, 6, 2, 3], [SAUCE, 12, 6, 2, 1], [TRAY, 14, 7, 6, 1]], heart(9, -6)) },
+  { name: 'プリン', desc: 'ぷるぷるのプリンを、スプーンで', seq: eatPlate(s => pudding(9, 9, s), [[SPOON, 13, 7, 6, 1], [PUDDING, 12, 6, 2, 2]], [...heart(9, -6), ...spark(-2, -2)]) },
+  { name: 'バナナ', desc: 'かわをむいて、もぐもぐ', seq: eatHeld(banana, 4, 9, 'top', [[BANANA, 16, 13, 4, 2], [BANANA, 15, 12, 1, 2], [BANANA, 20, 12, 1, 2]]) },
+];
+
+// ── ごはん（さらに10パターン） ──
+const TUNA = '#d84a4a', TUNA_L = '#f08a8a', SAUSAGE = '#b5452f', MUSTARD = '#f5c542', CHOCO = '#5a3a22', BATTER = '#e0a04a',
+      SHRIMP = '#e0475b', CURRY = '#b8742c', CARROT = '#f08a3c', GYOZA = '#f3dcae', DANGO_P = '#f4a6c0', DANGO_G = '#9ccc65',
+      MELONPAN = '#f2d36b', MELON_L = '#d9b04a', FRYBOX = '#d84a4a';
+const sushi   = (x, y) => [[RICE,x,y+2,7,2],[STEAM,x+1,y+3,5,1],[TUNA,x,y,7,2],[TUNA_L,x+2,y,1,1],[TUNA_L,x+5,y+1,1,1]];
+const hotdog  = (x, y) => [[BUN,x+1,y+2,7,2],[SAUSAGE,x,y+1,9,1],[MUSTARD,x+1,y,1,1],[MUSTARD,x+3,y,1,1],[MUSTARD,x+5,y,1,1],[MUSTARD,x+7,y,1,1]];
+const cookie  = (x, y) => [[DOUGH,x+1,y,4,1],[DOUGH,x,y+1,6,4],[DOUGH,x+1,y+5,4,1],[CHOCO,x+1,y+1,1,1],[CHOCO,x+4,y+2,1,1],[CHOCO,x+2,y+3,1,1],[CHOCO,x+4,y+4,1,1]];
+const ebifry  = (x, y) => [[BATTER,x+1,y,6,1],[BATTER,x,y+1,7,1],[BATTER,x+1,y+2,6,1],[CONE_D,x+2,y,1,1],[CONE_D,x+5,y+1,1,1],[SHRIMP,x+7,y,2,1],[SHRIMP,x+7,y+2,2,1],[SHRIMP,x+8,y+1,1,1]];
+const dango   = (x, y) => [[DANGO_P,x,y,3,3],[RICE,x,y+3,3,3],[DANGO_G,x,y+6,3,3],[STICK,x+1,y+9,1,3]];
+const taiyaki = (x, y) => [[DOUGH,x+1,y,5,5],[DOUGH,x,y+1,1,3],[DOUGH,x+6,y+1,1,3],[DOUGH,x+7,y,1,5],[NORI,x+1,y+1,1,1],[HOLE,x+3,y+2,1,1],[HOLE,x+5,y+1,1,1],[HOLE,x+5,y+3,1,1]];
+const melonpan = (x, y) => [[MELONPAN,x+2,y,3,1],[MELONPAN,x+1,y+1,5,1],[MELONPAN,x,y+2,7,3],[MELON_L,x+2,y+2,1,3],[MELON_L,x+4,y+2,1,3],[MELON_L,x,y+3,7,1]];
+const curry = (x, y, s) => [[RICE,x-1,y+4,14,1], ...trim([[RICE,x,y+1,6,3],[CURRY,x+6,y+1,6,3],[CARROT,x+7,y+1,1,1],[MUSTARD,x+10,y+2,1,1]], 'left', x + s * 4)];
+const gyoza = (x, y, s) => { const r = [[RICE,x-1,y+3,13,1]];
+  for (let i = s; i < 3; i++) r.push([GYOZA,x+i*4,y+1,3,2],[GYOZA,x+i*4+1,y,1,1],[DOUGH,x+i*4,y+2,3,1]);
+  return r; };
+const fries = (x, y, s) => { const r = [[FRYBOX,x,y+3,6,4],[MUSTARD,x+2,y+4,2,1]];
+  [[1,0],[2,1],[3,0],[4,1],[2,-1],[4,-1]].slice(0, 6 - s * 2).forEach(([dx, dy]) => r.push([MUSTARD,x+dx,y+dy,1,3]));
+  return r; };
+const FOODS3 = [
+  { name: 'おすし', desc: 'まぐろのにぎりを、ひと口ずつ', seq: eatHeld(sushi, 7, 4, 'left', heart(9, -6)) },
+  { name: 'ホットドッグ', desc: 'マスタードたっぷり、はしからがぶり', seq: eatHeld(hotdog, 9, 4, 'left', [...spark(-2, -3), ...spark(24, -5)]) },
+  { name: 'クッキー', desc: 'チョコチップクッキーを、さくさく', seq: eatHeld(cookie, 6, 6, 'left', [[DOUGH, 8, 13, 1, 1], [DOUGH, 15, 14, 1, 1], ...heart(9, -6)]) },
+  { name: 'えびフライ', desc: 'さくっと食べて、しっぽだけ残る', seq: eatHeld(ebifry, 7, 3, 'left', [[SHRIMP, 22, 10, 2, 1], [SHRIMP, 22, 12, 2, 1], [SHRIMP, 23, 11, 1, 1]]) },
+  { name: 'カレーライス', desc: 'スプーンで、ごはんとカレーをいっしょに', seq: eatPlate(s => curry(5, 11, s), [[SPOON, 13, 7, 6, 1], [RICE, 12, 6, 1, 1], [CURRY, 13, 6, 1, 1]], [...steam(10, 8, 0), ...heart(9, -6)]) },
+  { name: 'ぎょうざ', desc: 'こんがりぎょうざを、ひとつずつ', seq: eatPlate(s => gyoza(6, 12, s), [[GYOZA, 12, 6, 3, 2], [DOUGH, 12, 7, 3, 1]], [...spark(-2, -3), ...spark(24, -4)]) },
+  { name: 'おだんご', desc: 'ピンク・しろ・みどりを、上から順番に', seq: eatHeld(dango, 3, 9, 'top', [[STICK, 17, 10, 1, 3], ...heart(9, -6)]) },
+  { name: 'たいやき', desc: 'あたまから、ぱくっといく派', seq: eatHeld(taiyaki, 8, 5, 'left', [[DOUGH, 23, 9, 1, 3], ...spark(-2, -3)]) },
+  { name: 'メロンパン', desc: 'さくさくのメロンパンを、ほおばる', seq: eatHeld(melonpan, 7, 5, 'left', [[MELONPAN, 9, 13, 1, 1], ...heart(9, -6)]) },
+  { name: 'ポテト', desc: '1本ずつつまんで、ぱくぱく', seq: eatPlate(s => fries(16, 8, s), [[MUSTARD, 12, 4, 1, 4]], [...spark(-2, -3), ...spark(24, -5)]) },
+];
+
+// ── 食べ方のパターン ──
+const DISH = '#4a6fb5', WATER = '#9fd3f0', FIRE1 = '#e8452f', FIRE2 = '#f39c34', FIRE3 = '#f5d76e', UME = '#c0392b';
+const ricebowl = (x, y, s) => { const r = [[DISH,x,y+2,8,2],[DISH,x+1,y+4,6,1],[STEAM,x+3,y+3,2,1]];
+  const w = [6, 4, 2, 0][s]; if (w) r.push([RICE, x + 4 - w / 2, y, w, 2]); return r; };
+const sweat = (x, y) => [[WATER,x,y,1,2],[WATER,x-1,y+1,1,1]];
+const glass = (x, y) => [[WATER,x,y,3,4],[RICE,x,y,3,1]];
+const fire  = (x, y, k) => k ? [[FIRE1,x,y,4,3],[FIRE2,x+4,y,3,3],[FIRE3,x+7,y+1,2,1],[FIRE1,x+2,y-1,2,1]] : [[FIRE1,x,y,3,3],[FIRE2,x+3,y+1,3,2],[FIRE3,x+6,y+1,2,1]];
+const puff  = [[O,2,8,2,3],[O,20,8,2,3]];                     // ふくらんだほっぺ（腕の下でふくらむ）
+const belly = [[O,1,8,3,4],[O,20,8,3,4],[O,6,12,12,1]];        // ふくらんだおなか
+const freeze = [[SPRINK,6,-4,1,2],[SPRINK,11,-5,1,2],[SPRINK,16,-4,1,2]];
+const WAYS = [
+  { name: 'ガツガツ', desc: 'ごはんを、すごいいきおいでかきこむ', seq: (() => {
+    const s = [[fig({ extra: ricebowl(8, 10, 0) }), 500]];
+    for (let i = 0; i < 9; i++) { const st = Math.min(3, Math.floor(i / 3) + 1);
+      s.push([fig({ l: 'up', r: 'up', mouth: i % 2 ? 'closed' : 'open', squash: i % 2, extra: [...ricebowl(8, 8 + (i % 2), st - (i % 3 === 2 ? 0 : 1)), ...(i % 3 === 0 ? [[RICE, 10, 6, 1, 1], [RICE, 14, 5, 1, 1]] : [])] }), 110]); }
+    s.push([fig({ eyes: 'happy', cheek: true, mouth: 'closed', extra: [...ricebowl(8, 10, 3), [RICE, 13, 7, 1, 1]] }), 900], [fig({ eyes: 'happy' }), 400]);
+    return s; })() },
+
+  { name: 'フーフー', desc: 'あついので、ふーふーしてから食べる', seq: (() => {
+    const s = [[fig({ extra: [...takoyaki(5, 11, 2), ...steam(10, 6, 0)] }), 500], [fig({ r: 'up', extra: [[TAKO, 15, 6, 3, 3], ...steam(15, 3, 1)] }), 400]];
+    for (let k = 0; k < 3; k++) s.push([fig({ r: 'up', mouth: 'open', extra: [[TAKO, 15, 6, 3, 3], [STEAM, 13, 7, 1, 1], [STEAM, 11, 6, 1, 1]] }), 260], [fig({ r: 'up', mouth: 'closed', extra: [[TAKO, 15, 6, 3, 3], ...steam(15, 4 - k, k)] }), 260]);
+    s.push([fig({ r: 'up', mouth: 'open', extra: [[TAKO, 12, 5, 3, 3]] }), 220], [fig({ eyes: 'closed', mouth: 'closed', extra: [...sweat(21, 0)] }), 300],
+           [fig({ eyes: 'happy', mouth: 'open', squash: 1, extra: [...steam(11, 3, 0), ...sweat(21, 1)] }), 300], [fig({ eyes: 'happy', cheek: true, mouth: 'closed' }), 800]);
+    return s; })() },
+
+  { name: 'からい！', desc: 'カレーがからくて、口から火がでる', seq: (() => {
+    const s = [[fig({ extra: curry(5, 11, 0) }), 500], [fig({ r: 'up', mouth: 'open', extra: [...curry(5, 11, 1), [SPOON, 13, 7, 6, 1], [CURRY, 13, 6, 1, 1]] }), 280],
+               [fig({ mouth: 'closed', extra: curry(5, 11, 1) }), 400], [fig({ eyes: 'closed', cheek: true, extra: [...curry(5, 11, 1), ...sweat(3, 1)] }), 300]];
+    for (let k = 0; k < 4; k++) s.push([fig({ eyes: 'closed', cheek: true, mouth: 'open', dy: k % 2 ? 0 : -1, l: 'hi', r: 'hi', extra: [...fire(10, 7, k % 2),...sweat(3, 1 + k % 2), ...sweat(21, k % 2)] }), 180]);
+    s.push([fig({ r: 'up', mouth: 'open', extra: glass(12, 4) }), 600], [fig({ eyes: 'happy', mouth: 'closed', extra: sweat(21, 1) }), 700]);
+    return s; })() },
+
+  { name: 'すっぱい', desc: 'うめぼしで、ぎゅーっとしかめっつら', seq: (() => {
+    const s = [[fig({ r: 'up', extra: [[UME, 17, 6, 2, 2], [LEAF, 17, 5, 1, 1]] }), 600], [fig({ r: 'up', mouth: 'open', extra: [[UME, 12, 6, 2, 2]] }), 260], [fig({ mouth: 'closed' }), 300]];
+    for (let k = 0; k < 8; k++) s.push([fig({ eyes: 'closed', squash: 2, dx: k % 2 ? 1 : -1, mouth: 'closed', extra: [[SPRINK, -2, 4 + (k % 2), 1, 3], [SPRINK, 25, 4 + (k % 2), 1, 3]] }), 90]);
+    s.push([fig({ eyes: 'closed', squash: 1, mouth: 'closed' }), 500], [fig({ eyes: 'happy', mouth: 'closed' }), 700]);
+    return s; })() },
+
+  { name: 'つまみぐい', desc: 'まわりを見て…こっそりひとつ', seq: [
+    [fig({ extra: cookie(15, 10) }), 500], [fig({ look: -1, extra: cookie(15, 10) }), 450], [fig({ look: 1, extra: cookie(15, 10) }), 450], [fig({ look: -1, extra: cookie(15, 10) }), 300],
+    [fig({ r: 'up', mouth: 'open', dx: 1, extra: cookie(12, 4) }), 160], [fig({ mouth: 'closed', extra: puff }), 300],
+    [fig({ eyes: 'wink', mouth: 'closed', extra: [...puff, ...note(25, -6)] }), 500], [fig({ eyes: 'happy', mouth: 'closed', extra: [...puff, ...note(27, -9)] }), 500],
+    [fig({ eyes: 'happy', mouth: 'closed', squash: 1 }), 300], [fig({ eyes: 'happy', cheek: true }), 700] ] },
+
+  { name: 'おなかいっぱい', desc: '食べすぎて、おなかがぽっこり', seq: (() => {
+    const s = [];
+    for (let k = 0; k < 4; k++) s.push([fig({ l: 'up', r: 'up', mouth: k % 2 ? 'closed' : 'open', extra: ricebowl(8, 10, Math.min(3, k)) }), 250]);
+    s.push([fig({ eyes: 'happy', mouth: 'closed', extra: [...belly, ...ricebowl(8, 12, 3)] }), 700],
+           [fig({ eyes: 'happy', cheek: true, mouth: 'open', squash: 1, extra: [...belly, [STEAM, 12, 4, 2, 1]] }), 500],
+           [fig({ eyes: 'closed', cheek: true, extra: [...belly, ...heart(9, -6)] }), 900], [fig({ eyes: 'closed', extra: [...belly, ...zee(22, -3, ZZ())] }), 800]);
+    return s; })() },
+
+  { name: 'ひとくちで', desc: 'ハンバーガーを、まるごとひとくち！', seq: [
+    [fig({ extra: burger(16, 8) }), 600], [fig({ eyes: 'happy', extra: [...burger(16, 8), ...spark(24, -3)] }), 400],
+    [fig({ r: 'hi', mouth: 'open', extra: burger(12, 3) }), 300], [fig({ mouth: 'closed', extra: puff }), 200],
+    [fig({ mouth: 'closed', squash: 1, extra: puff }), 220], [fig({ mouth: 'closed', extra: puff }), 220], [fig({ mouth: 'closed', squash: 1, extra: puff }), 220],
+    [fig({ eyes: 'happy', mouth: 'closed', extra: [[O, 3, 8, 1, 3], [O, 20, 8, 1, 3]] }), 300], [fig({ eyes: 'happy', cheek: true, mouth: 'open', extra: heart(9, -6) }), 900] ] },
+
+  { name: 'あたまキーン', desc: 'アイスをいそいで食べて、キーン！', seq: (() => {
+    const s = [[fig({ extra: softcream(16, 6) }), 400]];
+    for (let k = 0; k < 4; k++) s.push([fig({ r: 'up', mouth: k % 2 ? 'closed' : 'open', extra: trim(softcream(13, 1), 'top', 1 + k * 2) }), 130]);
+    s.push([fig({ eyes: 'closed', l: 'hi', r: 'hi', extra: [...freeze, ...bang(23, -8)] }), 300]);
+    for (let k = 0; k < 6; k++) s.push([fig({ eyes: 'closed', l: 'hi', r: 'hi', dx: k % 2 ? 1 : -1, extra: freeze }), 90]);
+    s.push([fig({ eyes: 'closed', squash: 1 }), 500], [fig({ eyes: 'happy' }), 600]);
+    return s; })() },
+
+  { name: 'おすそわけ', desc: 'はんぶんこして、どうぞ', seq: [
+    [fig({ extra: cookie(16, 9) }), 500], [fig({ r: 'up', eyes: 'happy', extra: cookie(13, 5) }), 400],
+    [fig({ l: 'up', r: 'up', extra: [...trim(cookie(10, 5), 'left', 13), [DOUGH, 8, 5, 3, 1], [DOUGH, 7, 6, 4, 4]] }), 300],
+    [fig({ l: 'up', r: 'up', eyes: 'happy', extra: [[DOUGH, -2, 5, 3, 1], [DOUGH, -3, 6, 4, 4], [CHOCO, -2, 7, 1, 1], ...trim(cookie(17, 5), 'left', 20)] }), 700],
+    [fig({ eyes: 'happy', cheek: true, l: 'up', extra: [[DOUGH, -2, 5, 3, 1], [DOUGH, -3, 6, 4, 4], ...heart(-4, -4)] }), 900],
+    [fig({ r: 'up', mouth: 'open', extra: trim(cookie(12, 5), 'left', 15) }), 260], [fig({ eyes: 'happy', mouth: 'closed', squash: 1 }), 300], [fig({ eyes: 'happy', cheek: true }), 600] ] },
+
+  { name: 'いただきます', desc: '手をあわせて、いただきます→ごちそうさま', seq: [
+    [fig({ extra: ricebowl(8, 10, 0) }), 500], [fig({ l: 'up', r: 'up', eyes: 'closed', extra: ricebowl(8, 10, 0) }), 400],
+    [fig({ l: 'up', r: 'up', eyes: 'closed', squash: 2, extra: [...ricebowl(8, 10, 0), ...spark(-2, -2), ...spark(24, -3)] }), 600],
+    [fig({ mouth: 'open', r: 'up', extra: ricebowl(8, 10, 1) }), 250], [fig({ mouth: 'closed', eyes: 'happy', extra: ricebowl(8, 10, 2) }), 250],
+    [fig({ mouth: 'open', r: 'up', extra: ricebowl(8, 10, 2) }), 250], [fig({ mouth: 'closed', eyes: 'happy', extra: ricebowl(8, 10, 3) }), 400],
+    [fig({ l: 'up', r: 'up', eyes: 'closed', squash: 2, extra: [...ricebowl(8, 10, 3), ...heart(9, -6)] }), 900], [fig({ eyes: 'happy', cheek: true }), 500] ] },
+];
+
+// ── いろいろな動き その2（46〜65） ──
+const RED = '#e8452f', SCARF = '#d84a4a', BOX = '#c9a06a', BOX_D = '#a87f4f', BOOK = '#4a6fb5', UMB = '#e0475b', UMB_D = '#b8364a', BALL = '#e0475b', CAN = '#5a8fd0', IRON = '#5b5f6a';
+const vein  = (x, y) => [[RED,x,y,1,2],[RED,x+2,y,1,2],[RED,x-1,y+2,2,1],[RED,x+2,y+2,2,1]];   // おこりマーク
+const drop  = (x, y) => [[WATER,x,y,1,2]];
+const sun   = (x, y) => [[GOLD,x+1,y+1,4,4],[GOLD,x+2,y,2,1],[GOLD,x+2,y+5,2,1],[GOLD,x,y+2,1,2],[GOLD,x+5,y+2,1,2]];
+const scarf = (t) => [[SCARF,3,t+7,18,2],[SCARF,15,t+9,2,3],[RICE,6,t+7,1,2],[RICE,10,t+7,1,2]];
+const book  = (y) => [[BOOK,7,y,10,5],[RICE,8,y,4,4],[RICE,12,y,4,4],[STEAM,9,y+1,2,1],[STEAM,13,y+1,2,1],[STEAM,9,y+2,2,1],[STEAM,13,y+2,2,1]];
+const umbrella = [[UMB,4,-13,16,2],[UMB,0,-11,24,2],[UMB,-2,-9,28,2],[UMB_D,4,-9,2,2],[UMB_D,18,-9,2,2],[STICK,22,-7,1,12]];
+const rain  = k => [[0,-5],[27,-3],[-4,4],[28,8],[-3,12]].map(([x, y]) => [WATER, x, y + (k % 3) * 2, 1, 2]);
+const ball  = (x, y) => [[BALL,x,y,3,3],[RICE,x,y,1,1]];
+const can   = [[CAN,21,6,5,4],[CAN,26,5,3,1],[CAN,22,5,2,1]];
+const flower = h => [[LEAF,29,16-h,1,h],...(h >= 3 ? [[PINK,28,15-h,3,1],[PINK,29,14-h,1,3],[GOLD,29,15-h,1,1]] : [[LEAF,28,15,1,1]])];
+const dumbbell = y => [[IRON,-1,y,26,1],[NORI,-3,y-1,2,3],[NORI,25,y-1,2,3]];
+const legs2 = [[O,4,14,2,2],[O,8,14,2,2],[O,14,14,2,2],[O,18,14,2,2]];   // のびたときに足をのばす
+const orbit = k => { const p = [[-4,-4],[10,-9],[24,-4],[10,-6]][k % 4], q = [[24,-4],[10,-6],[-4,-4],[10,-9]][k % 4]; return [...spark(...p), ...spark(...q)]; };
+const MOVES2 = [
+  { name: 'くしゃみ', desc: 'は…は…はっくしょん！', seq: [
+    [fig(), 600], [fig({ eyes: 'closed', mouth: 'open', dy: -1 }), 400], [fig({ eyes: 'closed', mouth: 'open', dy: -2, l: 'up', r: 'up' }), 500],
+    [fig({ eyes: 'closed', mouth: 'open', squash: 2, dx: -1, extra: [[STEAM,9,8,1,1],[STEAM,13,9,1,1],[STEAM,11,10,1,1],[STEAM,15,8,1,1],...bang(23,-8)] }), 300],
+    [fig({ eyes: 'closed', squash: 1 }), 300], [fig({ eyes: 'happy', mouth: 'closed' }), 700] ] },
+  { name: 'あくび', desc: 'ふぁ〜…ねむい', seq: [
+    [fig(), 500], [fig({ eyes: 'closed', l: 'up', r: 'up', dy: -1, extra: [[K,10,6,4,3]] }), 900], [fig({ eyes: 'closed', l: 'hi', r: 'hi', dy: -1, extra: [[K,10,6,4,4], ...drop(19, 3)] }), 700],
+    [fig({ eyes: 'closed', mouth: 'closed', extra: drop(19, 5) }), 500], [fig({ eyes: 'closed', squash: 1 }), 400], [fig(), 500] ] },
+  { name: 'のびー', desc: 'うーんと、せのび', seq: [
+    [fig(), 500], [fig({ l: 'up', r: 'up', eyes: 'closed' }), 300], [fig({ l: 'hi', r: 'hi', eyes: 'closed', dy: -2, extra: legs2 }), 900],
+    [fig({ l: 'hi', r: 'hi', eyes: 'closed', dy: -2, dx: -1, extra: legs2 }), 400], [fig({ l: 'hi', r: 'hi', eyes: 'closed', dy: -2, dx: 1, extra: legs2 }), 400],
+    [fig({ squash: 1, eyes: 'happy' }), 300], [fig({ eyes: 'happy', cheek: true }), 600] ] },
+  { name: 'おじぎ', desc: 'ぺこり。よろしくおねがいします', seq: [
+    [fig(), 600], [fig({ squash: 2, eyes: 'closed' }), 250], [fig({ squash: 3, eyes: 'closed' }), 800], [fig({ squash: 1, eyes: 'closed' }), 200],
+    [fig({ eyes: 'happy', cheek: true, extra: [...spark(-2, -2), ...spark(24, -4)] }), 900] ] },
+  { name: 'びっくり', desc: 'わっ！とおどろいてとびあがる', seq: [
+    [fig(), 700], [fig({ eyes: 'big', mouth: 'open', dy: -4, l: 'hi', r: 'hi', lift: [0,1,2,3], extra: bang(23, -12) }), 250],
+    [fig({ eyes: 'big', mouth: 'open', dy: -2, l: 'hi', r: 'hi', extra: bang(23, -10) }), 300], [fig({ eyes: 'big', mouth: 'closed', squash: 1, extra: [...sweat(21, 0)] }), 500],
+    [fig({ eyes: 'big', extra: sweat(21, 1) }), 500], [fig({ eyes: 'closed' }), 200], [fig({ eyes: 'happy' }), 600] ] },
+  { name: 'ぷんぷん', desc: 'おこって、じたばた', seq: (() => { const s = [[fig(), 500]];
+    for (let k = 0; k < 6; k++) s.push([fig({ eyes: 'angry', mouth: 'closed', lift: k % 2 ? [0, 2] : [1, 3], l: k % 2 ? 'up' : 'side', r: k % 2 ? 'side' : 'up',
+      extra: [...vein(18, -3), [STEAM, 2 + (k % 2), -4 - (k % 3), 2, 1], [STEAM, 20 - (k % 2), -5 - (k % 3), 2, 1]] }), 200]);
+    s.push([fig({ eyes: 'angry', squash: 1, extra: vein(18, -2) }), 500], [fig({ eyes: 'closed' }), 400], [fig(), 400]); return s; })() },
+  { name: 'えーん', desc: 'なみだがぽろぽろ…でも元気になる', seq: (() => { const s = [[fig(), 400]];
+    for (let k = 0; k < 6; k++) s.push([fig({ eyes: 'closed', mouth: 'open', squash: k % 2, extra: [...drop(6, 5 + (k % 3) * 2), ...drop(17, 6 + ((k + 1) % 3) * 2), ...drop(4, 9 + (k % 2) * 3), ...drop(19, 10 + ((k + 1) % 2) * 3)] }), 250]);
+    s.push([fig({ eyes: 'closed', mouth: 'closed' }), 400], [fig({ eyes: 'happy', cheek: true, l: 'up', r: 'up', extra: [...spark(-2, -2), ...spark(24, -3)] }), 900]); return s; })() },
+  { name: 'てれてれ', desc: 'ほっぺを赤くして、もじもじ', seq: (() => { const s = [[fig(), 400]];
+    for (let k = 0; k < 6; k++) s.push([fig({ eyes: 'happy', cheek: true, look: k % 2 ? 1 : -1, dx: k % 2 ? 1 : -1, l: 'up', r: 'up', extra: heart(k % 2 ? 22 : -4, -6 - (k % 3)) }), 330]);
+    s.push([fig({ eyes: 'closed', cheek: true }), 600]); return s; })() },
+  { name: 'さむい', desc: 'マフラーをまいて、ぶるぶる', seq: (() => { const s = [];
+    for (let k = 0; k < 8; k++) s.push([fig({ eyes: 'closed', mouth: 'closed', dx: k % 2 ? 1 : -1, squash: 1, extra: [...scarf(1), [SPRINK, -3, 2 + k % 2, 1, 3], [SPRINK, 26, 3 - k % 2, 1, 3], ...(k % 4 < 2 ? [[STEAM, 11, 12, 2, 1]] : [])] }), 150]);
+    s.push([fig({ eyes: 'happy', cheek: true, extra: scarf(0) }), 900]); return s; })() },
+  { name: 'あつい', desc: 'おひさまが、じりじり…あせだく', seq: (() => { const s = [];
+    for (let k = 0; k < 6; k++) s.push([fig({ eyes: 'closed', mouth: 'open', squash: k % 2, r: k % 2 ? 'up' : 'hi', extra: [...sun(-7, -14), ...sweat(3, 1 + (k % 3)), ...sweat(21, 2 + ((k + 1) % 3)), ...drop(12, 13 + (k % 2))] }), 300]);
+    s.push([fig({ eyes: 'happy', extra: sun(-7, -14) }), 600]); return s; })() },
+  { name: 'かくれんぼ', desc: 'はこの中にかくれて、ちらっ', seq: (() => {
+    const bx = [[BOX,-2,8,28,8],[BOX_D,-2,8,28,1],[BOX_D,11,9,2,7]];
+    return [[fig({ extra: bx }), 600], [fig({ dy: 3, eyes: 'closed', nolegs: true, extra: bx }), 300], [fig({ dy: 7, nolegs: true, extra: bx }), 900], [fig({ dy: 5, look: -1, nolegs: true, extra: bx }), 500],
+            [fig({ dy: 5, look: 1, nolegs: true, extra: bx }), 500], [fig({ dy: 7, nolegs: true, extra: bx }), 600], [fig({ dy: -2, eyes: 'happy', l: 'hi', r: 'hi', extra: [...bx, ...spark(-2, -6), ...spark(24, -7)] }), 800], [fig({ extra: bx }), 500]]; })() },
+  { name: 'うたう', desc: 'ゆらゆら歌って、音符がふわふわ', seq: (() => { const s = [];
+    for (let k = 0; k < 8; k++) s.push([fig({ eyes: 'closed', mouth: k % 2 ? 'open' : 'closed', dx: k % 4 < 2 ? -1 : 1, extra: [...note(22, -4 - (k % 4) * 2), ...(k % 4 >= 2 ? note(-4, -8 - (k % 2) * 2) : [])] }), 300]);
+    return s; })() },
+  { name: '本を読む', desc: 'ページをめくって、ふむふむ', seq: (() => { const s = [];
+    for (let k = 0; k < 3; k++) s.push([fig({ l: 'up', r: 'up', look: 0, extra: book(8) }), 700], [fig({ l: 'up', r: 'up', eyes: 'closed', extra: book(8) }), 120],
+      [fig({ l: 'up', r: 'hi', extra: [...book(8), [RICE, 14, 5, 3, 3]] }), 250]);
+    s.push([fig({ l: 'up', r: 'up', eyes: 'happy', extra: [...book(8), ...bang(23, -8)] }), 800]); return s; })() },
+  { name: 'かさ', desc: 'あめの日に、かさをさしてるんるん', seq: (() => { const s = [];
+    for (let k = 0; k < 9; k++) s.push([fig({ r: 'up', eyes: k % 3 === 2 ? 'happy' : 'open', lift: k % 2 ? [0, 2] : [1, 3], dx: k % 2, extra: [...umbrella, ...rain(k)] }), 250]);
+    return s; })() },
+  { name: 'ボールあそび', desc: 'あたまでポンポン、リフティング', seq: (() => { const s = [], ys = [-4, -8, -11, -12, -11, -8];
+    for (let k = 0; k < 12; k++) { const y = ys[k % 6]; s.push([fig({ dy: y === -4 ? -1 : 0, look: 0, eyes: y < -10 ? 'open' : 'happy', extra: ball(10, y) }), 130]); }
+    s.push([fig({ eyes: 'big', extra: ball(26, 12) }), 400], [fig({ eyes: 'happy', extra: ball(26, 13) }), 500]); return s; })() },
+  { name: '水やり', desc: 'おはなに水をあげると、ぐんぐん', seq: (() => { const s = [[fig({ r: 'up', extra: [...can, ...flower(1)] }), 500]];
+    for (let k = 0; k < 6; k++) s.push([fig({ r: 'up', dx: -1, extra: [...can, ...drop(28, 7 + (k % 2) * 2), ...drop(27, 9 - (k % 2) * 2), ...flower(1 + Math.floor(k / 2) * 2)] }), 250]);
+    s.push([fig({ eyes: 'happy', cheek: true, extra: [...flower(6), ...heart(17, -6)] }), 900]); return s; })() },
+  { name: 'きんトレ', desc: 'ダンベルを、よいしょ、よいしょ', seq: (() => { const s = [[fig({ extra: dumbbell(7) }), 400]];
+    for (let k = 0; k < 4; k++) s.push([fig({ l: 'up', r: 'up', eyes: 'angry', squash: 1, extra: dumbbell(5) }), 300], [fig({ l: 'hi', r: 'hi', eyes: 'closed', dy: -1, extra: [...dumbbell(-5), ...(k > 1 ? sweat(21, 1) : [])] }), 400]);
+    s.push([fig({ eyes: 'happy', extra: [...dumbbell(7), ...sweat(21, 2), ...spark(-2, -3)] }), 800]); return s; })() },
+  { name: 'めがまわる', desc: 'くるくる回って、×の目で星がぐるぐる', seq: (() => { const s = [];
+    for (let k = 0; k < 6; k++) s.push([fig({ look: k % 2 ? 1 : -1, dx: [0, 1, 0, -1][k % 4], l: k % 2 ? 'up' : 'side', r: k % 2 ? 'side' : 'up' }), 140]);
+    for (let k = 0; k < 8; k++) s.push([fig({ eyes: 'dizzy', dx: k % 2 ? 1 : -1, squash: k % 2, extra: orbit(k) }), 220]);
+    s.push([fig({ eyes: 'closed', squash: 1 }), 400], [fig({ eyes: 'happy' }), 500]); return s; })() },
+  { name: 'シャボン玉', desc: 'ふーっとふくと、シャボン玉がふわり', seq: (() => { const s = [[fig({ r: 'up', extra: [[STICK, 19, 4, 3, 1]] }), 500]];
+    for (let k = 0; k < 8; k++) s.push([fig({ r: 'up', mouth: k % 4 === 0 ? 'open' : 'closed', eyes: k > 3 ? 'happy' : 'open',
+      extra: [[STICK, 19, 4, 3, 1], ...bubble(22, 1 - k, 2), ...(k > 2 ? bubble(25, 4 - (k - 3) * 2, 3) : []), ...(k > 4 ? bubble(-5, 2 - (k - 5) * 2, 2) : [])] }), 300]);
+    return s; })() },
+  { name: 'ピース', desc: 'ウインクして、ピース！', seq: [
+    [fig(), 600], [fig({ r: 'up' }), 150], [fig({ r: 'hi', eyes: 'wink', cheek: true, extra: [[O, 21, -6, 1, 2], [O, 23, -6, 1, 2], ...spark(-3, -3)] }), 700],
+    [fig({ r: 'hi', eyes: 'wink', cheek: true, dy: -1, extra: [[O, 21, -7, 1, 2], [O, 23, -7, 1, 2], ...spark(-2, -6), ...spark(25, -10)] }), 700], [fig({ eyes: 'happy' }), 500] ] },
+];
+
+// ── いろいろな動き その3（66〜95） ──
+const rep = (n, ms, f) => Array.from({ length: n }, (_, k) => [f(k), ms]);
+const PURPLE = '#9b6bd6', GREEN = '#5aa35a', WOOD = '#c98a4a';
+const catEars = [[O,5,-3,2,1],[O,4,-2,4,2],[O,17,-3,2,1],[O,16,-2,4,2],[PINK,5,-2,2,1],[PINK,17,-2,2,1]];
+const catMouth = [[K,10,6,1,1],[K,11,7,1,1],[K,12,6,1,1],[K,13,7,1,1],[K,14,6,1,1]];
+const bunny = t => [[O,6,t-8,2,8],[O,16,t-8,2,8],[PINK,6,t-6,1,5],[PINK,17,t-6,1,5]];
+const shades = [[K,4,2,16,1],[K,5,2,5,3],[K,14,2,5,3],[RICE,6,2,1,1],[RICE,15,2,1,1]];
+const tophat = y => [[K,7,y-5,10,5],[K,4,y,16,1],[RED,7,y-1,10,1]];
+const firework = (x, y, k, c) => k === 0 ? [[c,x,y,1,2]] : k === 1 ? [[c,x,y-1,1,3],[c,x-1,y,3,1]] :
+  [[c,x,y-4,1,2],[c,x,y+3,1,2],[c,x-4,y,2,1],[c,x+3,y,2,1],[c,x-3,y-3,1,1],[c,x+3,y-3,1,1],[c,x-3,y+3,1,1],[c,x+3,y+3,1,1]];
+const flake = (x, y) => [[RICE,x,y,1,1],[RICE,x-1,y+1,3,1],[RICE,x,y+2,1,1]];
+const leafs = k => [[-4,2],[8,-6],[20,-2],[-2,10]].map(([x, y], i) => [LEAF, x + ((k + i * 3) % 8) * 4 - 6, y + (k % 2), 2, 1]);
+const ghost = [[RICE,3,-1,18,14],[RICE,3,13,3,2],[RICE,9,13,3,2],[RICE,15,13,3,2],[RICE,18,13,3,2],[K,8,4,2,2],[K,14,4,2,2]];
+const wand = k => [[STICK,22,-2,1,7], ...spark(21, -5), ...(k % 2 ? [...spark(26, -9), ...spark(15, -8)] : [...spark(27, -2), ...spark(18, -11)])];
+const guitar = [[WOOD,9,7,8,6],[K,12,9,2,2],[STICK,17,9,9,1],[STICK,25,8,2,3]];
+const drum = [[RED,6,11,12,5],[RICE,6,10,12,1],[GOLD,6,13,12,1]];
+const camera = [[IRON,10,3,8,6],[K,12,4,4,4],[STEAM,13,5,2,2],[RICE,16,2,2,1]];
+const letter = open => [[RICE,7,6,10,6],[STEAM,7,6,10,1],[STEAM,8,7,1,1],[STEAM,15,7,1,1],[STEAM,9,8,6,1], ...(open ? heart(10, 0) : [[PINK,11,8,2,2]])];
+const gift = lid => [[RED,7,9,10,7],[GOLD,11,9,2,7],[GOLD,7,11,10,1],[RED,6,9 - lid,12,2],[GOLD,11,9 - lid,2,2],[GOLD,9,7 - lid,2,2],[GOLD,13,7 - lid,2,2]];
+const balloon = y => [[PINK,22,y,5,5],[PINK,23,y-1,3,1],[PINK,23,y+5,3,1],[RICE,23,y+1,1,1],[STEAM,24,y+6,1,8]];
+const shoot = k => [[GOLD,28 - k * 4,-14 + k * 3,2,2], ...(k > 0 ? [[GOLD,30 - k * 4,-15 + k * 3,2,1]] : []), ...(k > 1 ? [[GOLD,32 - k * 4,-16 + k * 3,1,1]] : [])];
+const rod = [[STICK,22,3,1,1],[STICK,23,2,1,1],[STICK,24,1,1,1],[STICK,25,0,1,1],[STICK,26,-1,1,1],[STICK,27,-2,1,1],[STICK,28,-3,1,1]];
+const fish = (x, y) => [[CAN,x,y,4,2],[CAN,x+4,y-1,1,4],[K,x+1,y,1,1]];
+const pom = (x, y) => [[GOLD,x,y,3,3],[PINK,x+1,y+1,1,1],[PINK,x-1,y+1,1,1],[PINK,x+3,y+1,1,1]];
+const bulb = on => [[on ? GOLD : STEAM,10,-11,4,4],[on ? GOLD : STEAM,11,-12,2,1],[IRON,11,-7,2,1], ...(on ? [[GOLD,7,-12,1,1],[GOLD,16,-12,1,1],[GOLD,12,-15,1,2]] : [])];
+const party = [[GOLD,10,-7,4,7],[GOLD,11,-9,2,2],[PINK,10,-4,4,1],[PINK,11,-7,2,1],[RICE,11,-11,2,2]];
+const confetti = k => [[-4,-6,PINK],[2,-12,GOLD],[18,-11,SPRINK],[26,-7,GREEN],[-2,4,PURPLE],[27,5,PINK]].map(([x, y, c], i) => [c, x, y + ((k + i) % 4) * 2, 1, 1]);
+const speed = [[STEAM,-6,4,4,1],[STEAM,-5,8,3,1],[STEAM,-6,12,4,1]];
+const MOVES3 = [
+  { name: 'スキップ', desc: 'るんるん、かた足ずつスキップ', seq: rep(10, 200, k => fig({ dy: k % 2 ? 0 : -2, dx: [0, 1, 2, 1, 0, -1, -2, -1, 0, 0][k], lift: k % 2 ? [] : (k % 4 ? [0, 2] : [1, 3]), eyes: 'happy', extra: k % 4 === 0 ? note(24, -6) : [] })) },
+  { name: 'ねこのまね', desc: 'ねこみみで、にゃーん', seq: [[fig(), 400], [fig({ extra: catEars }), 400], ...rep(6, 280, k => fig({ eyes: k % 3 === 2 ? 'closed' : 'happy', l: k % 2 ? 'up' : 'side', r: k % 2 ? 'side' : 'up', extra: [...catEars, ...catMouth, ...(k > 2 ? heart(22, -7) : [])] }))] },
+  { name: 'うさぎのまね', desc: 'ながいおみみで、ぴょこぴょこ', seq: rep(10, 200, k => fig({ dy: k % 2 ? 0 : -2, squash: k % 2, eyes: 'happy', lift: k % 2 ? [] : [0, 1, 2, 3], extra: bunny(k % 2 ? 1 : -2) })) },
+  { name: 'サングラス', desc: 'サングラスをかけて、キメッ', seq: [[fig(), 500], [fig({ extra: [[K,5,-6,5,3],[K,14,-6,5,3],[K,4,-6,16,1]] }), 200], [fig({ extra: [[K,5,-2,5,3],[K,14,-2,5,3],[K,4,-2,16,1]] }), 150],
+    [fig({ extra: shades }), 300], [fig({ r: 'hi', mouth: 'closed', extra: [...shades, ...spark(25, -6)] }), 700], [fig({ r: 'hi', mouth: 'closed', dy: -1, extra: [...shades, ...spark(-3, -4), ...spark(26, -9)] }), 800]] },
+  { name: 'シルクハット', desc: 'ぼうしを上げて、ごあいさつ', seq: [[fig({ extra: tophat(-1) }), 600], [fig({ r: 'up', extra: tophat(-3) }), 250], [fig({ r: 'hi', eyes: 'closed', squash: 2, extra: tophat(-6) }), 800],
+    [fig({ r: 'up', eyes: 'happy', extra: tophat(-3) }), 250], [fig({ eyes: 'happy', cheek: true, extra: [...tophat(-1), ...spark(25, -4)] }), 800]] },
+  { name: 'はなび', desc: 'ドーン！夜空にはなびがひらく', seq: rep(12, 220, k => fig({ eyes: k > 3 ? 'happy' : 'open', look: 0, extra: [...firework(-1, -6, Math.min(2, Math.max(0, k - 1)) , GOLD), ...(k > 4 ? firework(26, -9, Math.min(2, k - 5), PINK) : []), ...(k > 7 ? firework(12, -12, Math.min(2, k - 8), SPRINK) : [])] })) },
+  { name: 'ゆき', desc: 'ゆきがふってきて、手でキャッチ', seq: [...rep(8, 260, k => fig({ l: k % 2 ? 'up' : 'side', r: k % 2 ? 'side' : 'up', look: k % 2 ? -1 : 1, extra: [...flake(-3, -10 + k * 2), ...flake(25, -13 + k * 2), ...flake(11, -14 + (k % 4) * 2)] })),
+    [fig({ eyes: 'happy', l: 'up', r: 'up', cheek: true, extra: [...flake(1, -1), ...flake(22, -1)] }), 800]] },
+  { name: 'かぜ', desc: 'ぴゅーっと、はっぱといっしょにふかれる', seq: rep(10, 200, k => fig({ dx: k % 3 === 0 ? 0 : -1, eyes: 'closed', l: 'up', squash: k % 2, extra: [...leafs(k), [STEAM, 26, 2 + (k % 3) * 3, 4, 1], [STEAM, 27, 9 - (k % 2) * 2, 3, 1]] })) },
+  { name: 'おばけごっこ', desc: 'シーツをかぶって、おばけだぞ〜', seq: [[fig(), 400], ...rep(8, 260, k => fig({ dy: k % 2 ? -1 : 0, nolegs: true, extra: [...ghost.map(([c, x, y, w, h]) => [c, x + (k % 4 < 2 ? 0 : 1), y + (k % 2 ? -1 : 0), w, h])] })), [fig({ eyes: 'happy', cheek: true }), 700]] },
+  { name: 'まほう', desc: 'まほうのステッキで、キラキラ', seq: [[fig({ r: 'up', extra: [[STICK, 21, 1, 1, 6]] }), 400], ...rep(8, 220, k => fig({ r: 'hi', eyes: k % 2 ? 'happy' : 'open', extra: wand(k) })), [fig({ eyes: 'happy', cheek: true, extra: heart(9, -6) }), 700]] },
+  { name: 'ギター', desc: 'ジャカジャーン！とひきがたり', seq: rep(10, 230, k => fig({ r: k % 2 ? 'up' : 'side', eyes: 'closed', mouth: k % 2 ? 'open' : 'closed', dx: k % 4 < 2 ? 0 : 1, extra: [...guitar, ...note(24 - (k % 3), -4 - (k % 4) * 2)] })) },
+  { name: 'たいこ', desc: 'ドンドン、たいこをたたく', seq: rep(10, 180, k => fig({ l: k % 2 ? 'hi' : 'up', r: k % 2 ? 'up' : 'hi', eyes: k > 5 ? 'happy' : 'open', squash: k % 2, extra: [...drum, ...(k % 2 ? [[STEAM, 2, 9, 2, 1]] : [[STEAM, 20, 9, 2, 1]])] })) },
+  { name: 'カメラ', desc: 'はい、チーズ！パシャ', seq: [[fig({ r: 'up', l: 'up', extra: camera }), 600], [fig({ r: 'up', l: 'up', eyes: 'closed', extra: camera }), 300],
+    [fig({ r: 'up', l: 'up', extra: [...camera, [RICE, 15, -2, 1, 3], [RICE, 13, 0, 5, 1], ...spark(20, -6), ...spark(8, -5)] }), 200], [fig({ eyes: 'happy', extra: [[RICE, 22, 4, 6, 6], [SPRINK, 23, 5, 4, 2], [GREEN, 23, 7, 4, 2]] }), 900]] },
+  { name: 'てがみ', desc: 'おてがみをあけると、ハート', seq: [[fig({ l: 'up', r: 'up', extra: letter(false) }), 700], [fig({ l: 'up', r: 'up', eyes: 'big', extra: letter(false) }), 400],
+    [fig({ l: 'up', r: 'up', extra: letter(true) }), 400], [fig({ l: 'up', r: 'up', eyes: 'happy', cheek: true, extra: [...letter(true), ...heart(18, -6)] }), 900]] },
+  { name: 'プレゼント', desc: 'はこをあけると、キラキラ', seq: [[fig({ extra: gift(0) }), 600], [fig({ eyes: 'happy', l: 'up', r: 'up', extra: gift(0) }), 400], [fig({ l: 'up', r: 'up', extra: gift(3) }), 200],
+    [fig({ eyes: 'big', l: 'hi', r: 'hi', dy: -1, extra: [...gift(6), ...spark(10, -4), ...spark(3, -8), ...spark(19, -9)] }), 600], [fig({ eyes: 'happy', cheek: true, l: 'hi', r: 'hi', extra: [...gift(6), ...heart(9, -10)] }), 800]] },
+  { name: 'ふうせん', desc: 'ふうせんで、ふわっとうく', seq: rep(10, 260, k => fig({ r: 'hi', dy: k < 3 ? 0 : -[1, 2, 3, 2, 3, 2, 1][k - 3] || 0, eyes: k > 3 ? 'happy' : 'open', lift: k > 3 ? [0, 1, 2, 3] : [], extra: balloon(-12 - (k > 3 ? 2 : 0)) })) },
+  { name: 'ながれぼし', desc: 'ながれぼしに、おねがいごと', seq: [...rep(6, 160, k => fig({ look: 1, extra: shoot(k) })), [fig({ eyes: 'closed', l: 'up', r: 'up', extra: spark(4, -6) }), 900], [fig({ eyes: 'happy', cheek: true, extra: heart(9, -6) }), 700]] },
+  { name: 'つり', desc: 'じっとまって…つれた！', seq: [[fig({ r: 'up', extra: [...rod, [STEAM, 29, -3, 1, 18]] }), 900], [fig({ r: 'up', eyes: 'closed', extra: [...rod, [STEAM, 29, -3, 1, 18]] }), 400],
+    [fig({ r: 'up', eyes: 'big', extra: [...rod, [STEAM, 29, -3, 1, 18], ...bang(23, -9)] }), 300], [fig({ r: 'hi', dy: -1, extra: [...rod, [STEAM, 29, -3, 1, 6], ...fish(27, 3)] }), 300],
+    [fig({ r: 'hi', eyes: 'happy', cheek: true, extra: [...rod, [STEAM, 29, -3, 1, 4], ...fish(27, 1), ...spark(-3, -4)] }), 900]] },
+  { name: 'あっち！', desc: 'なにかを見つけて、ゆびさし', seq: [[fig(), 500], [fig({ look: 1 }), 400], [fig({ look: 1, eyes: 'big', extra: bang(22, -8) }), 300],
+    [fig({ look: 1, r: 'up', extra: [[O, 24, 0, 4, 2], [O, 28, 0, 2, 1]] }), 900], [fig({ look: 1, r: 'up', dx: 1, extra: [[O, 24, 0, 4, 2], [O, 28, 0, 2, 1], ...spark(28, -5)] }), 600]] },
+  { name: 'ころぶ', desc: 'つまずいて、ころん。でも平気', seq: [[fig(), 500], [fig({ dx: 2, lift: [3], eyes: 'big' }), 250], [fig({ dx: 3, squash: 3, eyes: 'dizzy', l: 'up', r: 'up', extra: [...spark(4, -4), ...spark(18, -5)] }), 700],
+    [fig({ squash: 2, eyes: 'closed', extra: drop(19, 3) }), 400], [fig({ eyes: 'happy', l: 'hi', extra: spark(-3, -6) }), 700]] },
+  { name: 'おうえん', desc: 'ポンポンで、フレー！フレー！', seq: rep(10, 220, k => fig({ l: k % 2 ? 'hi' : 'up', r: k % 2 ? 'up' : 'hi', dy: k % 4 === 0 ? -2 : 0, eyes: 'happy', mouth: k % 2 ? 'open' : 'closed', extra: [...pom(k % 2 ? -1 : -1, k % 2 ? -5 : 0), ...pom(k % 2 ? 22 : 22, k % 2 ? 0 : -5)] })) },
+  { name: 'はくしゅ', desc: 'パチパチパチ、すごいね！', seq: [...rep(10, 140, k => fig({ l: k % 2 ? 'up' : 'side', r: k % 2 ? 'up' : 'side', eyes: 'happy', extra: k % 2 ? [[GOLD, -2, 1, 2, 1], [GOLD, 24, 1, 2, 1], [GOLD, -1, -1, 1, 1], [GOLD, 24, -1, 1, 1]] : [] })), [fig({ eyes: 'happy', cheek: true }), 600]] },
+  { name: 'ためいき', desc: 'はぁ〜…ちょっとつかれた', seq: [[fig(), 500], [fig({ eyes: 'closed', dy: -1 }), 500], [fig({ eyes: 'closed', squash: 2, mouth: 'open', extra: [[STEAM, 8, 8, 3, 1], [STEAM, 6, 9, 2, 1]] }), 500],
+    [fig({ eyes: 'closed', squash: 2, extra: [[STEAM, 2, 8, 3, 1], [STEAM, 0, 10, 2, 1]] }), 600], [fig({ eyes: 'closed', squash: 1 }), 500], [fig(), 500]] },
+  { name: 'ひらめき', desc: 'ピコーン！いいことおもいついた', seq: [[fig({ look: 1, r: 'up', extra: bulb(false) }), 700], [fig({ look: 1, r: 'up', eyes: 'closed', extra: bulb(false) }), 400],
+    [fig({ eyes: 'big', l: 'hi', r: 'hi', dy: -1, extra: bulb(true) }), 600], [fig({ eyes: 'happy', l: 'hi', r: 'hi', extra: [...bulb(true), ...spark(-3, -6), ...spark(25, -6)] }), 800]] },
+  { name: 'かんがえちゅう', desc: 'うーん…と考えて、てんてんてん', seq: [...rep(8, 300, k => fig({ look: 1, r: 'up', eyes: k % 4 === 3 ? 'closed' : 'open', extra: [[ZZ(), 15, -3, 1, 1], ...(k % 4 > 0 ? [[ZZ(), 18, -5, 2, 2]] : []), ...(k % 4 > 1 ? [[ZZ(), 21, -8, 3, 3]] : [])] })),
+    [fig({ eyes: 'happy', extra: bulb(true) }), 600]] },
+  { name: 'ハートをなげる', desc: 'えいっ！とハートをなげる', seq: [[fig({ eyes: 'happy', cheek: true, extra: heart(15, 4) }), 400], [fig({ r: 'hi', eyes: 'happy', cheek: true, extra: heart(21, -6) }), 200],
+    ...rep(4, 160, k => fig({ r: 'up', eyes: 'wink', cheek: true, extra: heart(24 + k * 2, -9 - k * 2) })), [fig({ eyes: 'happy', cheek: true, extra: [...heart(-5, -9), ...heart(26, -12)] }), 700]] },
+  { name: 'かけっこ', desc: 'いそいで、タタタタッ', seq: rep(12, 110, k => fig({ dx: 1, dy: k % 2 ? 0 : -1, lift: k % 2 ? [0, 2] : [1, 3], l: k % 2 ? 'up' : 'side', r: k % 2 ? 'side' : 'up', eyes: 'angry', extra: [...speed, ...(k % 4 === 0 ? sweat(21, 0) : [])] })) },
+  { name: 'なわとび', desc: 'ぴょん、ぴょん、なわとび', seq: rep(8, 230, k => { const up = k % 2 === 0;
+    return fig({ dy: up ? -3 : 0, l: 'up', r: 'up', lift: up ? [0, 1, 2, 3] : [], eyes: k > 4 ? 'happy' : 'open',
+      extra: up ? [[STICK, -2, 13, 28, 1], [STICK, -2, 1, 1, 12], [STICK, 25, 1, 1, 12]] : [[STICK, -2, -6, 28, 1], [STICK, -2, -5, 1, 9], [STICK, 25, -5, 1, 9]] }); }) },
+  { name: 'おいわい', desc: 'とんがりぼうしで、おめでとう！', seq: rep(10, 220, k => fig({ l: k % 2 ? 'hi' : 'up', r: k % 2 ? 'up' : 'hi', dy: k % 4 === 0 ? -1 : 0, eyes: 'happy', cheek: true, extra: [...party.map(([c, x, y, w, h]) => [c, x, y + (k % 4 === 0 ? -1 : 0), w, h]), ...confetti(k)] })) },
+  { name: 'まばたき', desc: 'パチパチ…パチッとウインク', seq: [[fig(), 700], [fig({ eyes: 'closed' }), 100], [fig(), 150], [fig({ eyes: 'closed' }), 100], [fig(), 500], [fig({ eyes: 'closed' }), 100], [fig(), 150],
+    [fig({ eyes: 'wink', cheek: true, extra: spark(22, -3) }), 700], [fig(), 400]] },
+];
+
+window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS, ...MOVES2, ...MOVES3];
+})();
 (function ccTyping() {
   const svgs = Array.from(document.querySelectorAll('svg.cc-anim'));
   if (!svgs.length) return;
@@ -155,10 +730,31 @@ document.querySelectorAll('.copy').forEach(function(b){
       rect(6, s * 2 + 3, 2, 1, COLOR.K) + rect(16, s * 2 + 3, 2, 1, COLOR.K) +
       zee(22, -1 - k) + (k >= 2 ? zee(26, -6 - (k - 2)) : '') + '</g>');
   }
+  // 朝5時〜夜0時は、パソコンを打つ動きを3回くり返すごとに、01〜95 の動き（見本ページの番号）からランダムに1つを1回だけ入れる
+  //   入れる動きの絵は svgOf の X0 番から後ろに入れかえて使う
+  const TYPE_MS = total * 1000 / 30, EVERY = 3, X0 = svgOf.length;
+  let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY;
+  function extraId(now) {
+    if (!window.CC_EXTRA) return -1;
+    if (!mv) {
+      if (now < nextAt) return -1;
+      const seq = window.CC_EXTRA[Math.floor(Math.random() * window.CC_EXTRA.length)].seq;
+      svgOf.length = X0;
+      seq.forEach(q => svgOf.push('<g transform="translate(5,0)">' + q[0].map(([c, x, y, w, h]) => rect(x, y, w, h, c)).join('') + '</g>'));
+      mv = { t0: now, seq, total: seq.reduce((s, q) => s + q[1], 0) };
+    }
+    let t = now - mv.t0;
+    if (t >= mv.total) {   // 1回おわったら、パソコンを打つ動きを最初から（また3回打ったら次の動き）
+      mv = null; typeOff = Math.floor(now / (1000 / 30)); nextAt = now + TYPE_MS * EVERY; return -1;
+    }
+    for (let k = 0; k < mv.seq.length; k++) { if (t < mv.seq[k][1]) return X0 + k; t -= mv.seq[k][1]; }
+    return X0;
+  }
   function draw(now) {
-    let t = Math.floor(now / (1000 / 30)) % total, id = SEQ[0][0];
+    let t = (Math.floor(now / (1000 / 30)) - typeOff) % total, id = SEQ[0][0];
     for (const [f, len] of SEQ) { if (t < len) { id = f; break; } t -= len; }
     if (new Date().getHours() < 5) id = SLEEP0 + Math.floor(now / 480) % 8;   // 夜はおやすみ
+    else { const x = extraId(now); if (x >= 0) id = x; }   // ときどき入る動き
     if (id !== shown) { svgs.forEach(s => { s.innerHTML = svgOf[id]; }); shown = id; }
     requestAnimationFrame(draw);
   }
