@@ -66,6 +66,60 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
 </style>
 </head>
 <body>
+<!-- ===== キャラクターの自己紹介（左上の Claude Code と GitHub のマークをタップすると出る。cc-intro） ===== -->
+<style>
+  #ccIntro {
+    display: none; position: fixed; inset: 0; z-index: 99999;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  }
+  #ccIntro.show { display: flex; animation: ccIntroFade 0.2s; }
+  @keyframes ccIntroFade { from { opacity: 0; } to { opacity: 1; } }
+  #ccIntro .ccx-box {
+    width: 100%; max-width: 330px; box-sizing: border-box;
+    background: #0b1120; border: 3px double #f8f8f8; border-radius: 6px;
+    padding: 18px 16px 14px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  #ccIntro .ccx-pic { height: 104px; display: none; align-items: flex-end; justify-content: center; margin-bottom: 8px; }
+  #ccIntro .ccx-box[data-who="cc"] .ccx-pic-cc, #ccIntro .ccx-box[data-who="gh"] .ccx-pic-gh { display: flex; }
+  #ccIntro .ccx-pic-cc svg { width: 153px; height: 103.5px; shape-rendering: crispEdges; overflow: visible; }
+  #ccIntro .ccx-pic .gh-mascot { --gh-disc: #e6edf3; --gh-cat: #0b1120; height: auto; display: block; }
+  #ccIntro .ccx-pic .gh-mascot svg { width: 88px; height: 88px; overflow: visible; }
+  #ccIntro .ccx-name { font-size: 17px; font-weight: 800; margin-bottom: 8px; letter-spacing: 1px; }
+  #ccIntro .ccx-box[data-who="cc"] .ccx-name { color: #d97757; }
+  #ccIntro .ccx-box[data-who="gh"] .ccx-name { color: #e6edf3; }
+  #ccIntro .ccx-msg {
+    text-align: left; min-height: 8.8em; box-sizing: border-box;
+    background: #000; border: 2px solid #475569; border-radius: 4px;
+    padding: 10px 12px;
+    color: #f8f8f8; font-size: 14px; font-weight: 700; line-height: 1.75;
+    white-space: pre-line;
+  }
+  #ccIntro .ccx-actions { display: flex; gap: 8px; margin-top: 12px; }
+  #ccIntro .ccx-btn {
+    flex: 1; padding: 11px 8px; border-radius: 10px; box-sizing: border-box;
+    font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #ccIntro .ccx-link { background: rgba(51, 65, 85, 0.6); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+  #ccIntro .ccx-close { background: #f8f8f8; color: #0b1120; border: none; }
+  #ccIntro .ccx-btn:active { transform: scale(0.97); }
+</style>
+<div id="ccIntro">
+  <div class="ccx-box" data-who="cc">
+    <div class="ccx-pic ccx-pic-cc"><svg class="cc-anim" viewBox="0 -7 34 23" aria-hidden="true"></svg></div>
+    <div class="ccx-name"></div>
+    <div class="ccx-msg"></div>
+    <div class="ccx-actions">
+      <a class="ccx-btn ccx-link" href="#" target="_blank" rel="noopener">公式ページを見る</a>
+      <button type="button" class="ccx-btn ccx-close">とじる</button>
+    </div>
+  </div>
+</div>
+<!-- ===== ここまで キャラクターの自己紹介 ===== -->
 <div class="wrap">
   <header>
     <div class="top">
@@ -810,5 +864,81 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
   requestAnimationFrame(draw);
 })();
 </script>
+<script>
+// =============================================================
+// キャラクターの自己紹介（cc-intro）
+//   左上の Claude Code（オレンジ）と GitHub のマークをタップすると、それぞれが1文字ずつ「ピッ」と鳴らしながら自己紹介する。
+//   公式ページは自己紹介の画面の「公式ページを見る」から開く
+// =============================================================
+(function ccIntro() {
+  const APP = 'アプリ棚3';
+  const INTRO = {
+    cc: {
+      name: 'Claude Code（クロード・コード）',
+      link: 'https://claude.com/claude-code',
+      text: 'やあ！ ぼくは Claude Code。\nAnthropic が作った AI だよ。\n話しかけるだけで アプリを\n作ったり 直したり できるんだ。\nこの' + APP + 'も\nいっしょに作ったよ！'
+    },
+    gh: {
+      name: 'GitHub（ギットハブ）',
+      link: '',
+      text: 'ぼくは GitHub の オクトキャット。\nプログラムを しまっておく\n大きな本だな だよ。\n' + APP + 'は ここに置いてあって\nスマホからも 開けるんだ。'
+    }
+  };
+  const overlay = document.getElementById('ccIntro');
+  const box = overlay && overlay.querySelector('.ccx-box');
+  if (!box) return;
+  const msg = box.querySelector('.ccx-msg');
+  let full = '', pos = 0, timer = null, ac = null;
+
+  // 効果音（このアプリの音とは別に、自己紹介だけで使う）
+  function tone(freq, dur, vol) {
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = 'square'; o.frequency.setValueAtTime(freq, ac.currentTime);
+      g.gain.setValueAtTime(vol, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+      o.start(); o.stop(ac.currentTime + dur + 0.02);
+    } catch (e) {}
+  }
+  const blip = () => tone(1100, 0.03, 0.045);
+
+  function open(who) {
+    const d = INTRO[who];
+    box.dataset.who = who;
+    box.querySelector('.ccx-name').textContent = d.name;
+    box.querySelector('.ccx-link').href = d.link;
+    full = d.text; pos = 0; msg.textContent = '';
+    overlay.classList.add('show');
+    tone(1200, 0.05, 0.04);
+    clearTimeout(timer); timer = setTimeout(type, 300);
+  }
+  function type() {
+    if (pos >= full.length) return;
+    pos++; msg.textContent = full.slice(0, pos);
+    const c = full.charAt(pos - 1);
+    if (c !== ' ' && c !== '\n' && c !== '…') blip();
+    timer = setTimeout(type, c === '\n' ? 300 : 45);
+  }
+  // 文字の途中でタップしたら、残りを一気に出す
+  msg.addEventListener('click', () => { clearTimeout(timer); pos = full.length; msg.textContent = full; });
+  function close() { clearTimeout(timer); overlay.classList.remove('show'); tone(440, 0.08, 0.04); }
+  box.querySelector('.ccx-close').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  document.querySelectorAll('.cc-mascot').forEach(el => {
+    if (el.closest('#ccIntro')) return;
+    el.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); open('cc'); });
+  });
+  // GitHub のマークは、くるっと1回転してから自己紹介
+  document.querySelectorAll('.gh-mascot').forEach(el => {
+    if (el.closest('#ccIntro')) return;
+    el.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); setTimeout(() => open('gh'), 450); });
+  });
+})();
+</script>
+
 </body>
 </html>
