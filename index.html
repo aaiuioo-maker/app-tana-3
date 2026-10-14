@@ -773,11 +773,11 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
       rect(6, s * 2 + 3, 2, 1, COLOR.K) + rect(16, s * 2 + 3, 2, 1, COLOR.K) +
       zee(22, -1 - k) + (k >= 2 ? zee(26, -6 - (k - 2)) : '') + '</g>');
   }
-  // 朝5時〜夜0時は、パソコンを1回打つ → 01〜120 の動きからランダムに4回 → パソコンを1回 … とくり返す。動き（見本ページの番号）からランダムに1つを1回だけ入れる
+  // 朝5時〜夜0時は、最初にパソコンを1回打ったあとは、01〜120 の動きからずっとランダムに出す。動き（見本ページの番号）からランダムに1つを1回だけ入れる
   //   入れる動きの絵は svgOf の X0 番から後ろに入れかえて使う
   const TYPE_MS = total * 1000 / 30, EVERY = 1, X0 = svgOf.length;
   let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY, done = 0, last = -1;
-  const RUN = 4;   // パソコンを1回打ったあと、ランダムな動きを4回続ける（5回に1回がパソコン）
+  const RUN = Infinity;   // 最初にパソコンを1回打ったあとは、ずっとランダムな動きを続ける
   function extraId(now) {
     if (!window.CC_EXTRA) return -1;
     if (!mv) {
