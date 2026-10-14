@@ -730,9 +730,9 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
       rect(6, s * 2 + 3, 2, 1, COLOR.K) + rect(16, s * 2 + 3, 2, 1, COLOR.K) +
       zee(22, -1 - k) + (k >= 2 ? zee(26, -6 - (k - 2)) : '') + '</g>');
   }
-  // 朝5時〜夜0時は、パソコンを打つ動きを2回くり返すごとに、01〜95 の動き（見本ページの番号）からランダムに1つを1回だけ入れる
+  // 朝5時〜夜0時は、パソコンを打つ動きを1回するごとに、01〜95 の動き（見本ページの番号）からランダムに1つを1回だけ入れる
   //   入れる動きの絵は svgOf の X0 番から後ろに入れかえて使う
-  const TYPE_MS = total * 1000 / 30, EVERY = 2, X0 = svgOf.length;
+  const TYPE_MS = total * 1000 / 30, EVERY = 1, X0 = svgOf.length;
   let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY;
   function extraId(now) {
     if (!window.CC_EXTRA) return -1;
@@ -744,7 +744,7 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
       mv = { t0: now, seq, total: seq.reduce((s, q) => s + q[1], 0) };
     }
     let t = now - mv.t0;
-    if (t >= mv.total) {   // 1回おわったら、パソコンを打つ動きを最初から（また2回打ったら次の動き）
+    if (t >= mv.total) {   // 1回おわったら、パソコンを打つ動きを最初から（また1回打ったら次の動き）
       mv = null; typeOff = Math.floor(now / (1000 / 30)); nextAt = now + TYPE_MS * EVERY; return -1;
     }
     for (let k = 0; k < mv.seq.length; k++) { if (t < mv.seq[k][1]) return X0 + k; t -= mv.seq[k][1]; }
