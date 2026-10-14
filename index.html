@@ -128,7 +128,7 @@ document.querySelectorAll('.copy').forEach(function(b){
 });
 // =============================================================
 // キャラクターのいろいろな動き（見本ページ https://claude.ai/artifact/L4sFgs3LjxX7Rcd4s6ugBM と同じもの）
-//   window.CC_EXTRA[番号-1].seq が [コマの絵, 長さ(ミリ秒)] の並び。パソコンを打つ合間に、ときどき入れる動きで使う
+//   window.CC_EXTRA[番号-1].seq が [コマの絵, 長さ(ミリ秒)] の並び。パソコンを打つ合間に入れる動きで使う
 // =============================================================
 (function ccExtraMoves() {
 // 1マス＝半ドット。体は横24×縦16マス（パソコンを打つ版と同じ大きさ）
@@ -699,7 +699,50 @@ const MOVES3 = [
     [fig({ eyes: 'wink', cheek: true, extra: spark(22, -3) }), 700], [fig(), 400]] },
 ];
 
-window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS, ...MOVES2, ...MOVES3];
+// ── 仮装のパターン（96〜120） ──
+const BROWN = '#8b5a2b', NAVY = '#2c3e70', NINJA = '#2b2f3a', PUMPKIN = '#f08a3c', PUMP_D = '#d46f25', GLASS = '#bfe3f5', BEIGE = '#e8c9a0', MANE = '#c9772e', BELT = '#3a3a6a';
+const poof = [[STEAM,-2,4,4,3],[STEAM,22,3,4,3],[STEAM,8,-4,5,3],[STEAM,3,12,4,3],[STEAM,17,12,4,3],[STEAM,10,14,4,2]];
+// へんしん：ぽんっと煙 → 仮装してポーズ（arms：'wave' 右手をふる / 'both' 両手 / 'none'）→ キラキラ
+function dress(name, desc, cos, o = {}) {
+  const arms = o.arms || 'wave';
+  const s = [[fig(), 400], [fig({ eyes: 'closed', extra: poof }), 250], [fig({ eyes: 'closed', extra: [...cos(0, 0), ...poof.slice(0, 3)] }), 200]];
+  for (let k = 0; k < 6; k++) {
+    const t = o.bob === false ? 0 : (k % 2 ? -1 : 0);
+    s.push([fig({ dy: t, eyes: o.eyes || (k % 3 === 2 ? 'closed' : 'happy'), mouth: o.mouth, dx: o.step ? (k % 2 ? 1 : -1) : 0, lift: o.stomp ? (k % 2 ? [0, 1] : [2, 3]) : [],
+      l: arms === 'both' ? (k % 2 ? 'hi' : 'up') : 'side', r: arms === 'none' ? 'side' : (k % 2 ? 'up' : 'hi'), nolegs: o.nolegs, extra: cos(t, k) }), o.ms || 280]);
+  }
+  s.push([fig({ eyes: 'happy', cheek: !o.nocheek, mouth: o.mouth, nolegs: o.nolegs, extra: [...cos(0, 0), ...spark(-4, -8), ...spark(26, -10)] }), 800]);
+  return { name, desc, seq: s };
+}
+const DRESSES = [
+  dress('まじょ', 'とんがりぼうしと、ほうき', (t, k) => [[PURPLE,2,t-1,20,1],[PURPLE,6,t-4,12,3],[PURPLE,9,t-7,7,3],[PURPLE,12,t-9,4,2],[PURPLE,15,t-10,3,1],[GOLD,6,t-2,12,1],[STICK,25,t+1,1,11],[BOX,24,t+12,3,3], ...(k % 2 ? spark(27, t - 4) : [])], { arms: 'none' }),
+  dress('かいぞく', 'バンダナとアイパッチで、ヨーホー', (t, k) => [[RED,4,t,16,2],[RED,20,t+1,3,1],[RED,21,t+2,2,1],[K,5,t+2,4,3],[K,9,t+2,11,1],[SPOON,25,t-3+(k%2),1,8],[GOLD,24,t+4+(k%2),3,1]]),
+  dress('にんじゃ', 'ずきんをかぶって、しゅりけん', (t, k) => [[NINJA,4,t,16,2],[NINJA,4,t+5,16,7],[NINJA,20,t+1,4,1],[NINJA,22,t+2,3,1], ...(k % 2 ? [[IRON,27,t-2,1,3],[IRON,26,t-1,3,1]] : [[IRON,26,t-2,1,1],[IRON,28,t-2,1,1],[IRON,27,t-1,1,1],[IRON,26,t,1,1],[IRON,28,t,1,1]])], { arms: 'wave', eyes: 'open', nocheek: true }),
+  dress('おうさま', 'かんむりと、赤いマント', (t) => [[RED,1,t+8,3,8],[RED,20,t+8,3,8],[GOLD,6,t-3,12,3],[GOLD,6,t-5,2,2],[GOLD,11,t-5,2,2],[GOLD,16,t-5,2,2],[RED,11,t-2,2,1],[SPRINK,7,t-2,1,1],[SPRINK,16,t-2,1,1]], { arms: 'none' }),
+  dress('おひめさま', 'ティアラと、ふんわりドレス', (t) => [[GOLD,8,t-2,8,1],[GOLD,11,t-3,2,1],[PINK,11,t-4,2,1],[PINK,2,t+9,20,5],[RICE,2,t+13,20,1],[RICE,8,t+9,8,1]], { arms: 'both' }),
+  dress('サンタさん', '赤いぼうしと、白いおひげ', (t) => [[RED,5,t-3,14,3],[RED,9,t-5,8,2],[RED,15,t-6,4,1],[RICE,19,t-7,2,2],[RICE,4,t-1,16,2],[RICE,6,t+6,12,4],[RICE,8,t+10,8,1]]),
+  dress('トナカイ', 'つのと、ピカッと光る赤いはな', (t, k) => [[BROWN,6,t-5,1,5],[BROWN,4,t-6,1,3],[BROWN,8,t-6,1,2],[BROWN,17,t-5,1,5],[BROWN,19,t-6,1,3],[BROWN,15,t-6,1,2],[k % 2 ? RED : '#ff7b7b',11,t+5,2,2], ...(k % 2 ? [[GOLD,10,t+4,1,1],[GOLD,13,t+7,1,1]] : [])], { arms: 'both' }),
+  dress('かぼちゃ', 'ハロウィンのかぼちゃおばけ', (t, k) => [[PUMPKIN,2,t-1,20,9],[PUMP_D,8,t-1,1,9],[PUMP_D,15,t-1,1,9],[LEAF,11,t-3,2,2],[k % 2 ? GOLD : K,6,t+2,3,2],[k % 2 ? GOLD : K,15,t+2,3,2],[K,8,t+5,8,1],[K,9,t+6,2,1],[K,13,t+6,2,1]], { arms: 'both' }),
+  dress('ドラキュラ', '黒いマントと、きらりとキバ', (t) => [[K,0,t+3,4,12],[K,20,t+3,4,12],[RED,1,t+4,2,10],[RED,21,t+4,2,10],[K,3,t-1,3,4],[K,18,t-1,3,4],[K,4,t,16,1],[K,11,t+1,2,1],[RICE,10,t+6,1,2],[RICE,13,t+6,1,2]], { arms: 'none', mouth: 'closed' }),
+  dress('ミイラ', 'ほうたいぐるぐる、のっしのっし', (t) => [[RICE,4,t+1,16,1],[RICE,4,t+4,3,1],[RICE,17,t+4,3,1],[RICE,4,t+7,16,1],[RICE,4,t+10,16,1],[STEAM,6,t+5,6,1],[STEAM,12,t+9,6,1],[RICE,0,t+5,4,1],[RICE,20,t+5,4,1]], { arms: 'both', step: true, stomp: true }),
+  dress('うちゅうひこうし', 'ヘルメットをかぶって、宇宙へ', (t, k) => [[RICE,2,t-3,20,1],[RICE,1,t-2,1,11],[RICE,22,t-2,1,11],[RICE,2,t+9,20,1],[GLASS,3,t-2,3,1],[GLASS,3,t-1,1,2],[IRON,11,t-6,1,3],[k % 2 ? RED : GOLD,11,t-7,1,1], ...spark(-5, t - 10 + (k % 3)), ...spark(27, t - 5 - (k % 3))], { arms: 'both' }),
+  dress('ロボット', 'ウィーン、ガシャン', (t, k) => [[IRON,4,t,16,6],[k % 2 ? GOLD : SPRINK,6,t+2,3,2],[k % 2 ? GOLD : SPRINK,15,t+2,3,2],[IRON,11,t-3,2,3],[RED,11,t-4,2,1],[RICE,4,t+3,1,1],[RICE,19,t+3,1,1],[K,9,t+5,6,1]], { arms: 'both', step: true, eyes: 'closed', nocheek: true, ms: 200 }),
+  dress('コックさん', 'コックぼうしで、フライパン', (t, k) => [[RICE,6,t-6,12,4],[RICE,5,t-7,4,2],[RICE,10,t-8,4,2],[RICE,15,t-7,4,2],[STEAM,6,t-2,12,1],[STICK,21,t+6,3,1],[IRON,24,t+5,6,2],[RICE,25,t+1-(k%2)*4,3,2],[GOLD,26,t+1-(k%2)*4,1,1]], { arms: 'none' }),
+  dress('おいしゃさん', 'ちょうしんきで、もしもし', (t) => [[RICE,4,t-1,16,1],[SPOON,10,t-3,4,3],[RICE,11,t-3,1,1],[RICE,2,t+7,2,5],[RICE,20,t+7,2,5],[IRON,7,t+6,1,4],[IRON,16,t+6,1,4],[IRON,7,t+10,10,1],[SPOON,11,t+10,2,2]], { arms: 'none' }),
+  dress('おまわりさん', 'ぼうしとバッジで、ピッ', (t, k) => [[NAVY,4,t-2,16,3],[K,3,t+1,18,1],[GOLD,11,t-1,2,2],[GOLD,10,t+9,2,2], ...(k % 2 ? [[RICE,23,t+2,2,1],[STEAM,26,t+1,2,1],[STEAM,26,t+3,2,1]] : [])]),
+  dress('しょうぼうし', 'ヘルメットと、ホースで放水', (t, k) => [[RED,4,t-3,16,4],[RED,2,t+1,20,1],[GOLD,11,t-2,2,2],[RED,20,t+8,6,1],[WATER,27,t+6-(k%2),3,1],[WATER,29,t+4+(k%2),2,1],[WATER,30,t+8,2,1]], { arms: 'none' }),
+  dress('ゆうびんやさん', '〒のぼうしと、ゆうびんかばん', (t, k) => [[NAVY,4,t-2,16,3],[K,3,t+1,18,1],[RED,10,t-2,4,1],[RED,10,t-1,4,1],[RED,11,t,2,1],[K,5,t+3,1,1],[K,6,t+4,14,1],[RED,20,t+8,6,5],[RICE,21,t+7,3,2],[PINK,22,t+7,1,1], ...(k % 2 ? [[RICE,-4,t+2-(k%4),4,3],[RED,-3,t+3-(k%4),1,1]] : [])]),
+  dress('きょうりゅう', 'トゲトゲとしっぽで、ガオー', (t, k) => [[GREEN,6,t-2,2,2],[GREEN,10,t-3,2,3],[GREEN,14,t-2,2,2],[GREEN,22,t+10,5,2],[GREEN,26,t+8,2,3], ...(k % 2 ? [[K,10,t+5,4,3],[RICE,10,t+5,1,1],[RICE,13,t+5,1,1]] : [])], { arms: 'both', stomp: true }),
+  dress('ライオン', 'たてがみで、ガオーッ', (t, k) => [[MANE,2,t-2,20,2],[MANE,1,t,3,9],[MANE,20,t,3,9],[MANE,3,t-3,4,1],[MANE,17,t-3,4,1],[K,11,t+5,2,1], ...(k % 2 ? [[K,10,t+6,4,2]] : [])], { arms: 'both' }),
+  dress('くま', 'まるいおみみの、くまさん', (t) => [[BROWN,4,t-2,4,3],[BROWN,16,t-2,4,3],[PINK,5,t-1,2,1],[PINK,17,t-1,2,1],[BEIGE,9,t+5,6,3],[K,11,t+5,2,1],[BEIGE,8,t+9,8,3]]),
+  dress('ペンギン', 'よちよち、ペンギンさん', (t, k) => [[K,4,t,16,2],[K,4,t,3,12],[K,17,t,3,12],[RICE,7,t+2,10,10],[K,8,t+3,2,2],[K,14,t+3,2,2],[GOLD,11,t+6,2,2],[K,0,t+4+(k%2?-2:0),4,4],[K,20,t+4+(k%2?0:-2),4,4]], { arms: 'none', step: true, eyes: 'open', nocheek: true }),
+  dress('てんし', 'わっかと、白いはね', (t, k) => [[GOLD,8,t-5,8,1],[GOLD,7,t-4,1,1],[GOLD,16,t-4,1,1],[GOLD,8,t-3,8,1],[RICE,-4,t+2-(k%2),4,6],[RICE,-6,t+3-(k%2),2,4],[RICE,24,t+2-(k%2),4,6],[RICE,28,t+3-(k%2),2,4]], { arms: 'both' }),
+  dress('あくま', 'ツノとしっぽで、いたずら', (t, k) => [[RED,5,t-3,2,3],[RED,4,t-4,1,2],[RED,17,t-3,2,3],[RED,19,t-4,1,2],[RED,21,t+11,4,1],[RED,25,t+9-(k%2),1,3],[RED,24,t+8-(k%2),3,1]], { arms: 'wave', eyes: 'angry' }),
+  dress('おすもうさん', 'ちょんまげとまわしで、どすこい', (t) => [[K,10,t-3,4,3],[K,9,t-1,6,1],[BELT,4,t+9,16,3],[BELT,10,t+12,4,2],[RICE,11,t+12,1,2]], { arms: 'both', stomp: true, bob: false }),
+  dress('カウボーイ', 'ハットとなげなわで、ヒーハー', (t, k) => [[BROWN,6,t-4,12,3],[BROWN,2,t-1,20,1],[K,6,t-2,12,1],[RED,8,t+7,8,2], ...(k % 2 ? [[STICK,24,t-6,6,1],[STICK,23,t-5,1,3],[STICK,30,t-5,1,3],[STICK,24,t-2,6,1]] : [[STICK,23,t-8,6,1],[STICK,22,t-7,1,3],[STICK,29,t-7,1,3],[STICK,23,t-4,6,1]])]),
+];
+
+window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS, ...MOVES2, ...MOVES3, ...DRESSES];
 })();
 (function ccTyping() {
   const svgs = Array.from(document.querySelectorAll('svg.cc-anim'));
@@ -730,22 +773,26 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
       rect(6, s * 2 + 3, 2, 1, COLOR.K) + rect(16, s * 2 + 3, 2, 1, COLOR.K) +
       zee(22, -1 - k) + (k >= 2 ? zee(26, -6 - (k - 2)) : '') + '</g>');
   }
-  // 朝5時〜夜0時は、パソコンを打つ動きを1回するごとに、01〜95 の動き（見本ページの番号）からランダムに1つを1回だけ入れる
+  // 朝5時〜夜0時は、パソコンを1回打つ → 01〜120 の動きからランダムに4回 → パソコンを1回 … とくり返す。動き（見本ページの番号）からランダムに1つを1回だけ入れる
   //   入れる動きの絵は svgOf の X0 番から後ろに入れかえて使う
   const TYPE_MS = total * 1000 / 30, EVERY = 1, X0 = svgOf.length;
-  let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY;
+  let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY, done = 0, last = -1;
+  const RUN = 4;   // パソコンを1回打ったあと、ランダムな動きを4回続ける（5回に1回がパソコン）
   function extraId(now) {
     if (!window.CC_EXTRA) return -1;
     if (!mv) {
       if (now < nextAt) return -1;
-      const seq = window.CC_EXTRA[Math.floor(Math.random() * window.CC_EXTRA.length)].seq;
+      let i; do { i = Math.floor(Math.random() * window.CC_EXTRA.length); } while (i === last); last = i;   // 同じ動きは続けない
+      const seq = window.CC_EXTRA[i].seq;
       svgOf.length = X0;
       seq.forEach(q => svgOf.push('<g transform="translate(5,0)">' + q[0].map(([c, x, y, w, h]) => rect(x, y, w, h, c)).join('') + '</g>'));
       mv = { t0: now, seq, total: seq.reduce((s, q) => s + q[1], 0) };
     }
     let t = now - mv.t0;
     if (t >= mv.total) {   // 1回おわったら、パソコンを打つ動きを最初から（また1回打ったら次の動き）
-      mv = null; typeOff = Math.floor(now / (1000 / 30)); nextAt = now + TYPE_MS * EVERY; return -1;
+      mv = null; done = (done + 1) % RUN;
+      if (done) { nextAt = now; return extraId(now); }   // 続けて次の動き
+      typeOff = Math.floor(now / (1000 / 30)); nextAt = now + TYPE_MS * EVERY; return -1;
     }
     for (let k = 0; k < mv.seq.length; k++) { if (t < mv.seq[k][1]) return X0 + k; t -= mv.seq[k][1]; }
     return X0;
