@@ -64,6 +64,7 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
 /* キャラクターの下の「Claude Code」「GitHub」の文字を太く */
 .cc-label, .gh-label, .op-c > span { font-weight: 700 !important; }
 </style>
+<link rel="stylesheet" href="tana.css?v=1">
 </head>
 <body>
 <!-- ===== キャラクターの自己紹介（左上の Claude Code と GitHub のマークをタップすると出る。cc-intro） ===== -->
@@ -135,9 +136,7 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
     <p>使いたいアプリを開いて、スマホのホーム画面に追加してください。登録やダウンロードは要りません。</p>
   </header>
 
-  <ul class="shelf">
-    <li class="empty">まだアプリがありません。これから追加します。</li>
-  </ul>
+  <ul class="shelf" id="shelf"></ul>
 
   <section class="howto">
     <h2>ホーム画面に追加するには</h2>
@@ -164,24 +163,10 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
     <p class="line">LINE の中で開くと、ホーム画面に追加できません。右上の <kbd>︙</kbd>（iPhone は下の <kbd>共有</kbd>）から <kbd>ブラウザで開く</kbd> を選び、Chrome や Safari で開いてから追加してください。</p>
     <p class="note">このページ（このページ）も同じやり方でホーム画面に追加できます。</p>
   </section>
-  <footer>v1</footer>
+  <footer>v2</footer>
 </div>
 
 <script>
-// URLをコピー
-document.querySelectorAll('.copy').forEach(function(b){
-  b.addEventListener('click',function(){
-    var url=b.dataset.url, label=b.textContent;
-    function done(t){b.textContent=t;setTimeout(function(){b.textContent=label},1600)}
-    function sel(){
-      var el=b.closest('.app').querySelector('.url');
-      var r=document.createRange();r.selectNodeContents(el);
-      var s=getSelection();s.removeAllRanges();s.addRange(r);
-      done('URLを選択しました');
-    }
-    try{ navigator.clipboard.writeText(url).then(function(){done('コピーしました')},sel); }catch(e){ sel(); }
-  });
-});
 // =============================================================
 // キャラクターのいろいろな動き（見本ページ https://claude.ai/artifact/L4sFgs3LjxX7Rcd4s6ugBM と同じもの）
 //   window.CC_EXTRA[番号-1].seq が [コマの絵, 長さ(ミリ秒)] の並び。パソコンを打つ合間に入れる動きで使う
@@ -940,5 +925,6 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
 })();
 </script>
 
+<script src="tana.js?v=1"></script>
 </body>
 </html>
