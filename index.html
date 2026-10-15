@@ -184,7 +184,7 @@ document.querySelectorAll('.copy').forEach(function(b){
 });
 // =============================================================
 // キャラクターのいろいろな動き（見本ページ https://claude.ai/artifact/L4sFgs3LjxX7Rcd4s6ugBM と同じもの）
-//   window.CC_EXTRA[番号-1].seq が [コマの絵, 長さ(ミリ秒)] の並び。パソコンを打つ合間に入れる動きで使う
+//   window.CC_EXTRA に 01〜120 と 136〜175 の動きが入っている。.seq が [コマの絵, 長さ(ミリ秒)] の並び
 // =============================================================
 (function ccExtraMoves() {
 // 1マス＝半ドット。体は横24×縦16マス（パソコンを打つ版と同じ大きさ）
@@ -798,7 +798,201 @@ const DRESSES = [
   dress('カウボーイ', 'ハットとなげなわで、ヒーハー', (t, k) => [[BROWN,6,t-4,12,3],[BROWN,2,t-1,20,1],[K,6,t-2,12,1],[RED,8,t+7,8,2], ...(k % 2 ? [[STICK,24,t-6,6,1],[STICK,23,t-5,1,3],[STICK,30,t-5,1,3],[STICK,24,t-2,6,1]] : [[STICK,23,t-8,6,1],[STICK,22,t-7,1,3],[STICK,29,t-7,1,3],[STICK,23,t-4,6,1]])]),
 ];
 
-window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS, ...MOVES2, ...MOVES3, ...DRESSES];
+// ── オリジナルキャラ：トランプのマジシャン（オレンジのキャラクターと同じ 横24×縦16マス） ──
+const MG_HAIR = '#b48ad8', MG_HAIR_D = '#8a62b5', MG_SKIN = '#f6e3d3', MG_SUIT = '#5b3f8c', MG_SUIT_D = '#43306a', MG_EYE = '#3fae7a';
+// o: { dy, eyes:'open'|'wink'|'closed'|'grin', l/r: 'side'|'up'|'hi', card: [x,y] 持っているカード, extra }
+function mage(o = {}) {
+  const dy = o.dy || 0, r = [];
+  const R = (c, x, y, w, h) => r.push([c, x, y + dy, w, h]);
+  // かみの毛（つんつん）
+  R(MG_HAIR, 6, 0, 12, 2); R(MG_HAIR, 5, -2, 2, 3); R(MG_HAIR, 9, -3, 2, 3); R(MG_HAIR, 13, -3, 2, 3); R(MG_HAIR, 17, -2, 2, 3); R(MG_HAIR_D, 6, 1, 12, 1);
+  // かお
+  R(MG_SKIN, 7, 2, 10, 5); R(MG_HAIR, 6, 2, 1, 3); R(MG_HAIR, 17, 2, 1, 3);
+  const e = o.eyes || 'open';
+  if (e === 'closed' || e === 'grin') { R(K, 9, 4, 2, 1); R(K, 13, 4, 2, 1); }
+  else { R(MG_EYE, 9, 4, 2, 1); R(K, 9, 3, 2, 1); if (e === 'wink') R(K, 13, 4, 2, 1); else { R(MG_EYE, 13, 4, 2, 1); R(K, 13, 3, 2, 1); } }
+  R(GOLD, 8, 5, 1, 1); R(SPRINK, 15, 5, 1, 1);                          // ほっぺのペイント（ダイヤとしずく風）
+  R(K, 11, 6, e === 'grin' ? 3 : 2, 1); if (e === 'grin') R(K, 14, 5, 1, 1);   // にやり
+  // からだ
+  R(MG_SUIT, 8, 7, 8, 6); R(RICE, 10, 7, 4, 1); R(GOLD, 8, 10, 8, 1); R(MG_SUIT_D, 11, 8, 2, 2);
+  const arm = (side, pose) => { const x = side ? 16 : 5, hx = side ? 19 : 4;
+    if (pose === 'hi') { R(MG_SUIT, x, 3, 3, 4); R(MG_SKIN, side ? 17 : 5, 2, 2, 1); }
+    else if (pose === 'up') { R(MG_SUIT, x, 6, 3, 2); R(MG_SKIN, hx, 5, 1, 2); }
+    else { R(MG_SUIT, x, 8, 3, 3); R(MG_SKIN, side ? 17 : 5, 11, 2, 1); } };
+  arm(0, o.l); arm(1, o.r);
+  // あし
+  R(MG_SUIT_D, 9, 13, 2, 2); R(MG_SUIT_D, 13, 13, 2, 2); R(K, 8, 15, 3, 1); R(K, 13, 15, 3, 1);
+  const card = (x, y, red) => { r.push([RICE, x, y, 3, 4]); r.push([red ? RED : K, x + 1, y + 1, 1, 2]); };
+  if (o.card) card(o.card[0], o.card[1] + dy, o.card[2]);
+  (o.extra || []).forEach(q => r.push(q));
+  return r;
+}
+const flyCard = (x, y) => [[RICE, x, y, 4, 1], [RED, x + 1, y, 1, 1]];   // 横向きで飛ぶカード
+const ORIG = [
+  { name: 'マジシャン：カードなげ', desc: 'カードを取りだして、シュッ！', seq: [
+    [mage(), 600], [mage({ r: 'up', card: [19, 3, true] }), 400], [mage({ r: 'up', eyes: 'grin', card: [19, 3, true] }), 500],
+    [mage({ r: 'hi', eyes: 'grin', card: [18, -2, true] }), 200], [mage({ r: 'up', eyes: 'grin', extra: flyCard(22, 2) }), 90], [mage({ r: 'up', extra: flyCard(27, 2) }), 90],
+    [mage({ eyes: 'wink', extra: [...flyCard(32, 2), ...spark(30, -4)] }), 200], [mage({ eyes: 'wink' }), 700] ] },
+  { name: 'マジシャン：シャッフル', desc: 'トランプを両手でシャッフル', seq: (() => { const s = [[mage(), 500]];
+    for (let k = 0; k < 8; k++) s.push([mage({ l: 'up', r: 'up', eyes: k % 4 === 3 ? 'grin' : 'closed',
+      extra: [[RICE, 9, 6 - (k % 2), 3, 4], [RICE, 12, 5 + (k % 2), 3, 4], [RED, 10, 7 - (k % 2), 1, 1], [K, 13, 6 + (k % 2), 1, 1], ...(k % 2 ? [[RICE, 11, 3, 2, 1]] : [])] }), 160]);
+    s.push([mage({ r: 'hi', eyes: 'wink', card: [18, -2, false] }), 800]); return s; })() },
+  { name: 'マジシャン：ゆびの上のカード', desc: 'ゆびの上でカードをくるくる', seq: (() => { const s = [];
+    for (let k = 0; k < 8; k++) s.push([mage({ r: 'hi', eyes: k % 4 === 0 ? 'grin' : 'open', dy: k % 2 ? 0 : 0,
+      extra: k % 2 ? [[RICE, 17, -5, 3, 4], [RED, 18, -4, 1, 2]] : [[RICE, 16, -3, 5, 1], [RED, 18, -3, 1, 1]] }), 200]);
+    s.push([mage({ r: 'hi', eyes: 'wink', extra: [[RICE, 17, -5, 3, 4], [RED, 18, -4, 1, 2], ...spark(22, -9)] }), 700]); return s; })() },
+];
+
+// ── なかまのキャラクター（124〜135） ──
+const sc = (rects, k, ox, oy) => rects.map(([c, x, y, w, h]) => [c, ox + x * k, oy + y * k, w * k, h * k]);   // 小さくして置く
+const rc = (rects, col) => rects.map(r => r[0] === O ? [col, ...r.slice(1)] : r);                                 // 色ちがい
+const POST = '#d8352f', POST_D = '#a8261f', TAPE = '#e9d8a6', CAT = '#9a9aa6', CAT_D = '#76768a', CHICK = '#f5d33d', BEAK = '#f08a3c';
+const letterR = (x, y) => [[RICE, x, y, 4, 3], [STEAM, x, y, 4, 1], [RED, x + 3, y + 1, 1, 1]];
+const postbox = (o = {}) => { const t = o.sq ? 1 : 0, r = [[POST, 6, t, 12, 14 - t], [POST, 7, t - 1, 10, 1], [POST_D, 6, 12, 12, 2], [K, 9, t + 5, 6, 1],
+  [RICE, 10, 8, 4, 1], [RICE, 10, 9, 4, 1], [RICE, 11, 10, 2, 2], [K, 8, 14, 2, 2], [K, 14, 14, 2, 2]];
+  if (o.eyes === 'happy') r.push([K, 8, t + 2, 3, 1], [K, 13, t + 2, 3, 1]); else if (o.eyes === 'closed') r.push([K, 8, t + 3, 3, 1], [K, 13, t + 3, 3, 1]); else r.push([K, 9, t + 1, 2, 2], [K, 13, t + 1, 2, 2]);
+  return r.concat(o.extra || []); };
+const parcel = (o = {}) => { const dy = o.dy || 0, l = o.lift || 0, r = [[BOX, 4, 2 + dy, 16, 11], [BOX_D, 4, 2 + dy, 16, 1], [TAPE, 11, 2 + dy, 2, 11], [RICE, 5, 9 + dy, 4, 2], [RED, 6, 9 + dy, 1, 1],
+  [BOX_D, 2, 7 + dy, 2, 2], [BOX_D, 20, 7 + dy, 2, 2], [BOX_D, 7, 13 + dy, 2, l === 1 ? 1 : 3], [BOX_D, 15, 13 + dy, 2, l === 2 ? 1 : 3]];
+  if (o.eyes === 'happy') r.push([K, 7, 6 + dy, 3, 1], [K, 14, 6 + dy, 3, 1]); else r.push([K, 8, 5 + dy, 2, 2], [K, 14, 5 + dy, 2, 2]);
+  if (o.mouth) r.push([K, 11, 8 + dy, 2, 1]); return r.concat(o.extra || []); };
+const bike = (k, dx) => { const s = k % 2, r = [[K,0,11,6,5],[K,18,11,6,5],[IRON,2,13,2,1],[IRON,20,13,2,1],[IRON,s?3:2,s?12:13,1,s?3:1],[IRON,s?21:20,s?12:13,1,s?3:1],
+  [POST,5,9,13,3],[POST,3,8,4,2],[K,8,7,7,2],[IRON,17,4,1,6],[IRON,16,4,3,1],[POST,0,3,6,5],[RICE,2,4,2,1],[RICE,2,5,2,1],[RICE,2,6,1,1],[GOLD,22,8,2,1]];
+  return r.map(([c, x, y, w, h]) => [c, x + dx, y, w, h]); };
+const cat = (o = {}) => { const w = o.wag || 0, r = [[CAT,5,0,14,8],[CAT,5,-2,3,2],[CAT,16,-2,3,2],[PINK,6,-1,1,1],[PINK,17,-1,1,1],[CAT,7,8,10,6],[CAT,8,14,2,2],[CAT,14,14,2,2],
+  [CAT,17,8,2,5],[CAT,18 + w,5,2,3],[CAT_D,9,8,1,6],[CAT_D,12,8,1,6],[PINK,11,5,2,1],[K,10,6,1,1],[K,13,6,1,1]];
+  if (o.eyes === 'closed') r.push([K,7,3,3,1],[K,14,3,3,1]); else r.push([K,8,2,2,2],[K,14,2,2,2]);
+  return r.concat(o.extra || []); };
+const chick = (o = {}) => { const dy = o.dy || 0, f = o.flap ? -2 : 0, r = [[CHICK,6,3+dy,12,10],[CHICK,8,0+dy,8,4],[CHICK,4,6+dy+f,2,4],[CHICK,18,6+dy+f,2,4],[BEAK,11,o.peck?6+dy:4+dy,2,2],[BEAK,8,13,2,3],[BEAK,14,13,2,3]];
+  r.push(o.eyes === 'happy' ? [K,8,2+dy,3,1] : [K,9,2+dy,2,2]); r.push(o.eyes === 'happy' ? [K,13,2+dy,3,1] : [K,13,2+dy,2,2]); return r.concat(o.extra || []); };
+const penguin = (o = {}) => { const dx = o.dx || 0, f = o.flap ? -2 : 0, r = [[K,6,0,12,14],[RICE,8,4,8,9],[RICE,8,2,3,2],[RICE,13,2,3,2],[K,9,2,2,2],[K,13,2,2,2],[GOLD,11,5,2,2],
+  [K,3,5+f,3,6],[K,18,5+f,3,6],[GOLD,7,14,3,2],[GOLD,14,14,3,2]];
+  return r.map(([c, x, y, w, h]) => [c, x + dx, y, w, h]).concat(o.extra || []); };
+const onigiriKun = (o = {}) => { const dy = o.dy || 0, r = [[RICE,10,0+dy,4,2],[RICE,8,2+dy,8,2],[RICE,6,4+dy,12,2],[RICE,4,6+dy,16,7],[NORI,7,9+dy,10,4],[PINK,6,8+dy,2,1],[PINK,16,8+dy,2,1],
+  [RICE,1,o.arms?5+dy:8+dy,3,2],[RICE,20,o.arms?5+dy:8+dy,3,2],[K,8,13,2,3],[K,14,13,2,3]];
+  r.push(...(o.eyes === 'happy' ? [[K,7,6+dy,3,1],[K,14,6+dy,3,1]] : [[K,8,5+dy,2,2],[K,14,5+dy,2,2]])); return r.concat(o.extra || []); };
+const eggKun = (o = {}) => { const t = o.tilt || 0, r = [[RICE,7+t,0,10,2],[RICE,5+t,2,14,10],[RICE,7,12,10,2],[STEAM,15+t,3,2,6],[K,8,14,2,2],[K,14,14,2,2]];
+  r.push(...(o.eyes === 'closed' ? [[K,8+t,6,3,1],[K,13+t,6,3,1]] : [[K,9+t,5,2,2],[K,13+t,5,2,2]]));
+  if (o.crack) r.push([K,6+t,4,2,1],[K,8+t,3,2,1],[K,10+t,4,2,1],[K,12+t,3,2,1],[K,14+t,4,2,1],[K,16+t,3,2,1]);
+  if (o.peek) r.push([CHICK,9,-3,6,4],[K,10,-2,1,1],[K,13,-2,1,1],[BEAK,11,-1,2,1]);
+  return r.concat(o.extra || []); };
+const FRIENDS = [
+  { name: '色ちがいの兄弟', desc: '青・オレンジ・みどりが、じゅんばんにぴょん', seq: rep(9, 220, k => { const j = k % 3;
+    return [...sc(rc(fig({ dy: j === 0 ? -3 : 0, eyes: j === 0 ? 'happy' : 'open' }), '#5a8fd0'), .55, -6, 3), ...sc(fig({ dy: j === 1 ? -3 : 0, eyes: j === 1 ? 'happy' : 'open' }), .55, 6, 3),
+      ...sc(rc(fig({ dy: j === 2 ? -3 : 0, eyes: j === 2 ? 'happy' : 'open' }), '#5aa35a'), .55, 18, 3)]; }) },
+  { name: '親子', desc: '小さい子が、あとをてくてくついていく', seq: rep(10, 230, k => [...fig({ dx: -6, lift: k % 2 ? [0, 2] : [1, 3], eyes: k % 4 === 3 ? 'happy' : 'open' }),
+    ...sc(fig({ lift: k % 2 ? [1, 3] : [0, 2], dy: k % 2 ? -2 : 0, eyes: 'happy' }), .45, 20, 8)]) },
+  { name: 'ゆうびんポスト', desc: 'てがみをパクッ！ごちそうさま', seq: [[postbox(), 500], ...[28, 23, 18].map(x => [postbox({ extra: letterR(x, 4) }), 160]), [postbox({ extra: letterR(12, 4) }), 120],
+    [postbox({ sq: 1, eyes: 'closed' }), 250], [postbox({ eyes: 'closed' }), 200], [postbox({ sq: 1, eyes: 'closed' }), 250], [postbox({ eyes: 'happy', extra: heart(18, -6) }), 800]] },
+  { name: '小包', desc: 'ダンボールが、てくてくおさんぽ', seq: rep(10, 220, k => parcel({ dy: k % 2 ? 0 : -1, lift: k % 2 ? 1 : 2, eyes: k > 6 ? 'happy' : 'open', mouth: k > 6, extra: k > 6 ? spark(22, -3) : [] })) },
+  { name: '配達バイク', desc: 'ブーン！とやってきて、ピタッ', seq: [...rep(6, 140, k => [...bike(k, -30 + k * 5), [STEAM, -36 + k * 5, 12, 3, 1]]), ...rep(4, 180, k => [...bike(k, 0), ...(k % 2 ? [[STEAM, -4, 12, 3, 1], [STEAM, -7, 11, 2, 1]] : [])]),
+    [[...bike(0, 0), ...spark(26, -2)], 600]] },
+  { name: 'ねこ', desc: 'しっぽをふりふり、にゃーん', seq: rep(10, 230, k => cat({ wag: [0, 1, 2, 1, 0, -1, -2, -1, 0, 0][k], eyes: k === 4 || k === 8 ? 'closed' : 'open', extra: k > 5 ? note(22, -6 - (k % 2)) : [] })) },
+  { name: 'ひよこ', desc: 'ぴよぴよ、つんつん', seq: rep(10, 200, k => chick({ dy: k % 4 === 0 ? -2 : 0, flap: k % 2, peck: k === 6 || k === 7, eyes: k > 7 ? 'happy' : 'open', extra: k === 7 ? [[GOLD, 12, 13, 1, 1]] : [] })) },
+  { name: 'ペンギン', desc: 'よちよち歩いて、パタパタ', seq: rep(10, 220, k => penguin({ dx: [-2, -1, 0, 1, 2, 2, 1, 0, -1, -2][k], flap: k > 6 && k % 2 })) },
+  { name: 'おにぎりくん', desc: 'ばんざいして、ぴょんぴょん', seq: rep(8, 230, k => onigiriKun({ dy: k % 2 ? 0 : -2, arms: k % 2 === 0, eyes: k % 4 === 0 ? 'happy' : 'open', extra: k % 4 === 0 ? spark(22, -4) : [] })) },
+  { name: 'たまごくん', desc: 'ゆらゆら…パリッ！ひよこがこんにちは', seq: [...rep(6, 200, k => eggKun({ tilt: [0, 1, 0, -1, 0, 1][k], eyes: k === 3 ? 'closed' : 'open' })), [eggKun({ crack: true }), 400],
+    [eggKun({ crack: true, peek: true }), 900], [eggKun({ crack: true, peek: true, extra: heart(18, -7) }), 700], [eggKun({}), 300]] },
+  { name: 'マジシャン：まほうの花', desc: 'カードが、ぽんっと花にかわる', seq: [[mage({ r: 'up', card: [19, 3, true] }), 500], [mage({ r: 'up', eyes: 'grin', card: [19, 3, true] }), 400],
+    [mage({ r: 'up', eyes: 'closed', extra: [[STEAM, 18, 1, 5, 3], [STEAM, 17, 3, 2, 2], [STEAM, 22, 4, 2, 2]] }), 250],
+    [mage({ r: 'up', eyes: 'wink', extra: [[LEAF, 20, 2, 1, 5], [PINK, 18, -1, 5, 3], [GOLD, 20, 0, 1, 1], ...spark(24, -5)] }), 900]] },
+  { name: 'オレンジとマジシャン', desc: 'カードをなげて、オレンジがキャッチ', seq: (() => { const mg = o => sc(mage(o), .6, 13, 4), cc = o => sc(fig(o), .55, -3, 7);
+    return [[[...cc({}), ...mg({ card: [19, 3, true], r: 'up' })], 500], [[...cc({}), ...mg({ r: 'hi', eyes: 'grin', card: [18, -2, true] })], 250],
+      ...[22, 16, 10].map(x => [[...cc({ eyes: 'big' }), ...mg({ r: 'up' }), [RICE, x, 4, 2, 1]], 120]),
+      [[...cc({ l: 'hi', r: 'hi', eyes: 'happy', extra: [[RICE, 1, -6, 3, 4], [RED, 2, -5, 1, 2]] }), ...mg({ eyes: 'wink' })], 500],
+      [[...cc({ l: 'hi', r: 'hi', eyes: 'happy', cheek: true, extra: [[RICE, 1, -6, 3, 4], [RED, 2, -5, 1, 2]] }), ...mg({ eyes: 'grin' }), ...heart(10, -8)], 800]]; })() },
+];
+
+// ── ブロックの世界ふう（136〜155）：オレンジのキャラクターが、四角いブロックや道具に変身 ──
+const GRASS = '#5fae4a', GRASS_D = '#4a8f3a', DIRT = '#8b5e3c', DIRT_D = '#6e4a2e', STONE = '#8d8d8d', STONE_D = '#6f6f6f', LOGB = '#7a5532', LOGR = '#c9a06a',
+      SAND = '#e3d29a', SAND_D = '#cdb97e', BRICK = '#b5523b', MORTAR = '#d9cbb8', GEM = '#4fd1d9', WOOL = '#eeeeee', PIGC = '#f2a7b5', PIG_D = '#d9808f';
+const eyes2 = t => [[K, 6, t + 2, 2, 2], [K, 16, t + 2, 2, 2]];
+const body = (t, base, dots = []) => [[base, 4, t, 16, 12], ...dots.map(([c, x, y, w = 2, h = 2]) => [c, x, t + y, w, h]), ...eyes2(t)];
+const pick = (x, y) => [[STICK, x, y, 1, 7], [STONE, x - 3, y, 7, 1], [STONE, x - 3, y + 1, 1, 1], [STONE, x + 3, y + 1, 1, 1]];
+const sword = (x, y) => [[GEM, x, y, 1, 6], [RICE, x, y, 1, 1], [STICK, x - 1, y + 6, 3, 1], [STICK, x, y + 7, 1, 2]];
+const BLOCKS = [
+  dress('草ブロック', 'みどりの草に、茶色の土', t => body(t, DIRT, [[GRASS,4,0,16,3],[GRASS,5,3,2,1],[GRASS,10,3,1,2],[GRASS,15,3,2,1],[DIRT_D,7,7],[DIRT_D,13,9],[DIRT_D,17,6]]), { arms: 'both' }),
+  dress('土ブロック', 'ほっこり茶色の土', t => body(t, DIRT, [[DIRT_D,6,6],[DIRT_D,12,4],[DIRT_D,16,8],[DIRT_D,9,10],[DIRT_D,14,1]])),
+  dress('石ブロック', 'かたい石で、どっしり', t => body(t, STONE, [[STONE_D,6,6,3,1],[STONE_D,12,1,3,1],[STONE_D,15,8,3,1],[STONE_D,8,10,2,1],[RICE,10,5,1,1]]), { stomp: true, bob: false }),
+  dress('木の丸太', '年輪のある、木の丸太', t => [...body(t, LOGB, [[LOGR,4,0,16,2],[LOGB,6,1,12,1],[DIRT_D,7,4,1,7],[DIRT_D,12,5,1,6],[DIRT_D,17,3,1,8]])], { arms: 'both' }),
+  dress('葉っぱブロック', 'わさわさの葉っぱ', (t, k) => body(t, GRASS_D, [[GRASS,5,1],[GRASS,10,3],[GRASS,15,1],[GRASS,7,7],[GRASS,13,8],[GRASS,17,5], ...(k % 2 ? [[LEAF,-2,6+k%3,2,1],[LEAF,25,3,2,1]] : [])])),
+  dress('砂ブロック', 'さらさらの砂', (t, k) => body(t, SAND, [[SAND_D,6,4,1,1],[SAND_D,11,7,1,1],[SAND_D,16,3,1,1],[SAND_D,8,10,1,1],[SAND_D,14,10,1,1], ...(k % 2 ? [[SAND,6,13,1,1],[SAND,16,14,1,1]] : [])])),
+  dress('レンガ', 'がっしりレンガの家', t => body(t, BRICK, [[MORTAR,4,3,16,1],[MORTAR,4,7,16,1],[MORTAR,4,11,16,1],[MORTAR,10,0,1,3],[MORTAR,7,4,1,3],[MORTAR,15,4,1,3],[MORTAR,11,8,1,3]]), { stomp: true }),
+  dress('ガラス', 'すきとおったガラス', t => [[GLASS,4,t,16,1],[GLASS,4,t+11,16,1],[GLASS,4,t,1,12],[GLASS,19,t,1,12],[RICE,7,t+3,1,3],[RICE,8,t+2,1,1],[RICE,15,t+7,2,1], ...eyes2(t)], { arms: 'both' }),
+  dress('宝石の鉱石', '石の中に、水色の宝石', (t, k) => body(t, STONE, [[GEM,6,5],[GEM,13,2],[GEM,15,8],[GEM,9,9], ...(k % 2 ? [[RICE,13,2,1,1],[RICE,6,5,1,1]] : [])]).concat(k % 2 ? spark(24, -4) : [])),
+  dress('金の鉱石', '石の中に、ピカピカの金', (t, k) => body(t, STONE, [[GOLD,7,5],[GOLD,14,3],[GOLD,11,9],[GOLD,16,8]]).concat(k % 2 ? spark(-3, -3) : [])),
+  { name: 'つるはしでほる', desc: 'カンカン！ブロックをほって、宝石ゲット', seq: (() => { const s = [];
+    for (let k = 0; k < 6; k++) s.push([fig({ r: k % 2 ? 'up' : 'hi', eyes: 'angry', extra: [...(k % 2 ? pick(25, 2) : pick(22, -6)), [STONE, 25, 9, 6, 6], ...(k > 1 ? [[STONE_D, 27, 10, 1, 3], [STONE_D, 28, 12, 2, 1]] : []), ...(k > 3 ? [[K, 26, 11, 3, 1], [K, 29, 13, 1, 2]] : [])] }), 200]);
+    s.push([fig({ eyes: 'happy', l: 'hi', r: 'hi', extra: [[GEM, 10, -8, 3, 3], [RICE, 10, -8, 1, 1], ...spark(6, -10), ...spark(15, -11)] }), 900]); return s; })() },
+  { name: '剣をかまえる', desc: '水色の剣で、えいっ！', seq: [[fig(), 400], [fig({ r: 'up', extra: sword(22, 0) }), 300], [fig({ r: 'hi', eyes: 'angry', extra: sword(21, -9) }), 300],
+    [fig({ r: 'up', eyes: 'angry', dx: 1, extra: [...sword(25, 2), [RICE, 27, 0, 1, 6], [RICE, 28, 2, 1, 4]] }), 200], [fig({ r: 'up', eyes: 'happy', extra: [...sword(22, 0), ...spark(26, -6)] }), 800]] },
+  dress('かまど', '石のかまどで、ぽかぽか', (t, k) => body(t, STONE, [[K,8,6,8,5],[k % 2 ? RED : '#f39c34',9,8,6,3],[GOLD,11,9,2,2],[STONE_D,4,4,16,1]]).concat([[STEAM, 10, t - 3 - (k % 3), 2, 1], [STEAM, 13, t - 5 + (k % 2), 2, 1]]), { arms: 'none' }),
+  dress('作業台', '木の作業台で、ものづくり', (t, k) => body(t, LOGR, [[LOGB,4,0,16,1],[LOGB,9,0,1,3],[LOGB,14,0,1,3],[LOGB,4,3,16,1],[IRON,6,6,3,3],[LOGB,14,6,3,4], ...(k % 2 ? [[STEAM,20,t-1,2,1]] : [])]), { arms: 'both' }),
+  { name: 'たからばこ', desc: 'ふたがパカッ！中から宝石', seq: (() => { const box = (lid) => [[LOGB, 4, 4, 16, 10], [DIRT_D, 4, 8, 16, 1], [LOGB, 4, 2 - lid, 16, 3], [DIRT_D, 4, 4 - lid, 16, 1], [GOLD, 11, 6 - (lid ? 0 : 0), 2, 3], [K, 6, 1 - lid, 2, 2], [K, 16, 1 - lid, 2, 2]];
+    return [[fig(), 300], [fig({ eyes: 'closed', extra: poof }), 250], [box(0), 500], [box(0).map(([c, x, y, w, h]) => [c, x + 1, y, w, h]), 120], [box(0), 120], [box(4), 300],
+      [[...box(4), [GEM, 8, -4, 3, 3], [GOLD, 13, -6, 3, 3], ...spark(4, -9), ...spark(18, -10)], 900]]; })() },
+  dress('ベッド', 'まくらつきのベッドで、ねむねむ', (t, k) => [[RED, -2, t + 6, 28, 6], [RICE, -2, t + 4, 7, 4], [LOGB, -3, t + 4, 1, 10], [LOGB, 26, t + 7, 1, 7], [K, 0, t + 5, 2, 1], ...zee(22, -2 - (k % 3) * 2, ZZ())], { arms: 'none', eyes: 'closed', nolegs: true, nocheek: true }),
+  dress('ケーキ', 'しかくいケーキに、いちご', t => body(t, SPONGE, [[RICE,4,0,16,3],[RICE,6,3,2,1],[RICE,12,3,1,2],[RICE,17,3,2,1],[BERRY,6,-2+0,2,2],[BERRY,11,-2,2,2],[BERRY,16,-2,2,2],['#d9b77a',4,8,16,1]]), { arms: 'both' }),
+  dress('ブロックのブタ', 'ピンクのしかくいブタ', (t, k) => body(t, PIGC, [[PIG_D,9,5,6,4],[K,10,6,1,2],[K,13,6,1,2],[PIG_D,4,0,3,2],[PIG_D,17,0,3,2]]).concat(k % 2 ? note(23, -6) : []), { stomp: true }),
+  dress('ブロックのヒツジ', 'もこもこの白い毛', (t, k) => [...body(t, WOOL, [[STEAM,6,6],[STEAM,13,9],[STEAM,16,3],[RICE,9,3,1,1]]), [STONE_D, 8, t + 1, 8, 6], [K, 9, t + 3, 2, 1], [K, 13, t + 3, 2, 1], [PIGC, 11, t + 5, 2, 1]], { arms: 'none', step: true }),
+  dress('ブロックのニワトリ', 'しろいからだに、赤いトサカ', (t, k) => [...body(t, WOOL, [[RED,9,-2,6,2],[GOLD,10,4,4,2],[RED,11,6,2,2]]), ...(k % 2 ? [[WOOL, -1, t + 4, 5, 3], [WOOL, 20, t + 4, 5, 3]] : [[WOOL, 0, t + 6, 4, 3], [WOOL, 20, t + 6, 4, 3]])], { arms: 'none' }),
+];
+
+// ── ブロックの世界のなかまたち（156〜175）：四角いからだのオリジナルの生き物 ──
+const ZSKIN = '#5f9e5a', ZSHIRT = '#3e7fb5', ZPANTS = '#3d3a8c', BONE = '#d9d9d2', BONE_D = '#a9a9a2', SPIDER = '#3a3333', SLIME = '#7cd35f', SLIME_L = '#a8e88f',
+      GOLEM = '#9a9a90', MOSS = '#6a9a4a', BEE = '#f2c14e', WOLF = '#d9d4cc', HORSE = '#9a6a3c', SQUID = '#2f4a7a', SHELL = '#4f8a3a', FOX = '#e07a35', BAT = '#4a3a32',
+      DRAGON = '#6b4aa8', FISH = '#e0a04a', PARROT = '#d8433f', ROBE = '#4a6fb5';
+const mob = (n, ms, f) => rep(n, ms, f);
+const MOBS = [
+  { name: 'ゾンビ', desc: '両手をのばして、のっしのっし', seq: mob(8, 260, k => [[ZSKIN,7,0,10,7],[K,9,3,2,1],[K,13,3,2,1],[K,10,5,4,1],[ZSHIRT,7,7,10,5],[ZSKIN,17,7 - (k%2),7,3],[ZSKIN,0,8 - ((k+1)%2),7,3],
+    [ZPANTS,8,12,3,k % 2 ? 3 : 4],[ZPANTS,13,12,3,k % 2 ? 4 : 3]].map(([c,x,y,w,h]) => [c, x + (k % 4 < 2 ? 0 : 1), y, w, h])) },
+  { name: 'ガイコツ', desc: 'カタカタ、ゆみをかまえる', seq: mob(8, 240, k => [[BONE,8,0,8,7],[K,9,2,2,2],[K,13,2,2,2],[K,10,5,4,1],[BONE,11,7,2,6],[BONE,8,8,8,1],[BONE,8,10,8,1],[BONE,5,8,3,1],[BONE,16,8,3 + (k % 2),1],
+    [BONE,9,13,1,3],[BONE,14,13,1,3],[STICK,20,4,1,9],[STICK,21,3,1,1],[STICK,21,13,1,1],[STEAM,20 - (k % 2) * 2,8,1,1]]) },
+  { name: 'クモ', desc: '8本の足で、カサカサ', seq: mob(8, 160, k => { const u = k % 2; return [[SPIDER,6,5,12,7],[SPIDER,8,3,8,3],[RED,9,6,2,1],[RED,13,6,2,1],[RED,10,8,1,1],[RED,13,8,1,1],
+    ...[0,1,2,3].flatMap(i => [[SPIDER,1,6 + i*2 + (u ? (i%2) : -(i%2)),5,1],[SPIDER,18,6 + i*2 + (u ? -(i%2) : (i%2)),5,1]])].map(([c,x,y,w,h]) => [c, x + (k % 4 - 1.5), y, w, h]); }) },
+  { name: 'スライム', desc: 'ぷるぷる、ぽよーんとはねる', seq: mob(8, 200, k => { const h = [10, 9, 6, 11, 12, 11, 10, 10][k], w = [16, 17, 20, 14, 13, 14, 16, 16][k], y = 16 - h - [0, 0, 0, 3, 6, 3, 0, 0][k];
+    return [[SLIME, 12 - w / 2, y, w, h], [SLIME_L, 12 - w / 2 + 2, y + 2, w - 4, h - 4], [K, 12 - w / 2 + 3, y + 2, 2, 2], [K, 12 + w / 2 - 5, y + 2, 2, 2], [K, 11, y + h - 4, 2, 1]]; }) },
+  { name: '石のゴーレム', desc: 'こけの生えた、やさしい大男', seq: mob(8, 280, k => [[GOLEM,7,-2,10,7],[K,9,1,2,1],[K,13,1,2,1],[STONE_D,11,2,2,3],[GOLEM,4,5,16,7],[MOSS,6,6,3,2],[MOSS,15,9,2,2],
+    [GOLEM,1,6,3,k % 2 ? 9 : 8],[GOLEM,20,6,3,k % 2 ? 8 : 9],[GOLEM,7,12,4,4],[GOLEM,13,12,4,4], ...(k > 5 ? [[PINK,1,2,3,2],[LEAF,2,4,1,2]] : [])]) },
+  { name: 'ミツバチ', desc: 'ブーン、花のまわりをとぶ', seq: mob(8, 160, k => { const y = [0, -2, -3, -2, 0, 1, 0, -1][k];
+    return [[BEE,5,4 + y,14,8],[K,9,4 + y,2,8],[K,14,4 + y,2,8],[K,6,6 + y,2,2],[RICE,7 + (k % 2),k % 2 ? -1 + y : 1 + y,6,3],[STEAM,7 + (k % 2),k % 2 ? -1 + y : 1 + y,2,1],[K,19,8 + y,2,1],[PINK,22,12,3,2],[LEAF,23,14,1,2]]; }) },
+  { name: 'オオカミ', desc: 'しっぽをふって、ワン！', seq: mob(8, 220, k => [[WOLF,12,2,9,6],[WOLF,12,0,2,2],[WOLF,18,0,2,2],[K,14,4,1,1],[K,18,4,1,1],[K,20,5,2,1],[WOLF,3,6,14,6],[RED,12,8,6,1],
+    [WOLF,4,12,2,4],[WOLF,8,12,2,k % 2 ? 3 : 4],[WOLF,12,12,2,4],[WOLF,15,12,2,k % 2 ? 4 : 3],[WOLF,0,k % 2 ? 4 : 6,4,2], ...(k > 4 ? bang(22, -6) : [])]) },
+  { name: 'ウシ', desc: 'もぐもぐ、モ〜', seq: mob(8, 260, k => [[RICE,3,4,15,8],[K,5,5,4,3],[K,12,8,4,3],[K,13,4,2,2],[RICE,16,2,7,7],[K,18,4,1,1],[K,21,4,1,1],[PINK,17,7 + (k % 2),6,2],[STEAM,16,1,1,2],[STEAM,22,1,1,2],
+    [RICE,4,12,2,4],[RICE,8,12,2,4],[RICE,11,12,2,4],[RICE,15,12,2,4], ...(k > 5 ? note(25, -6) : [])]) },
+  { name: 'ウマ', desc: 'パカパカ、かけていく', seq: mob(8, 160, k => { const u = k % 2; return [[HORSE,3,4,14,7],[HORSE,15,0,4,8],[HORSE,17,-1,6,4],[K,20,0,1,1],[K,14,-1,2,6],[K,1,4,2,6 - u],
+    [HORSE,4,11,2,u ? 3 : 5],[HORSE,7,11,2,u ? 5 : 3],[HORSE,12,11,2,u ? 3 : 5],[HORSE,15,11,2,u ? 5 : 3],[K,4,u ? 14 : 16,2,1],[K,15,u ? 16 : 14,2,1]].map(([c,x,y,w,h]) => [c, x, y - (u ? 1 : 0), w, h]); }) },
+  { name: 'イカ', desc: 'すいすい、うみの中をおよぐ', seq: mob(8, 220, k => { const y = [0, -2, -4, -5, -4, -2, 0, 1][k], sp = k % 4 < 2;
+    return [[SQUID,7,y,10,9],[K,8,3 + y,2,2],[K,14,3 + y,2,2],...[0,1,2,3].map(i => [SQUID, 7 + i * 3 + (sp ? (i - 1.5) : 0), 9 + y, 1, sp ? 6 : 4]), [WATER,2,6 - y,1,1],[WATER,21,2 - y,1,1]]; }) },
+  { name: 'カメ', desc: 'のんびり、のそのそ', seq: mob(8, 320, k => [[SHELL,5,4,14,7],[GRASS,7,5,4,2],[GRASS,13,5,4,2],[GRASS,10,8,4,2],[LEAF,19,6 + (k % 2),4,4],[K,21,7 + (k % 2),1,1],
+    [LEAF,5,11,3,k % 2 ? 2 : 3],[LEAF,16,11,3,k % 2 ? 3 : 2],[SAND,0,14,24,2]].map(([c,x,y,w,h]) => [c, x + Math.floor(k / 2) * 0.5 - 1, y, w, h])) },
+  { name: 'キツネ', desc: 'ふさふさしっぽで、ぴょん', seq: mob(8, 200, k => { const dy = k % 4 === 1 ? -3 : 0;
+    return [[FOX,13,1,8,6],[FOX,13,-1,2,2],[FOX,19,-1,2,2],[RICE,16,5,5,2],[K,15,3,1,1],[K,19,3,1,1],[K,20,5,1,1],[FOX,4,6,12,6],[RICE,7,10,6,2],[FOX,0,4,5,4],[RICE,0,4,2,2],
+      [K,5,12,2,4],[K,13,12,2,4]].map(([c,x,y,w,h]) => [c, x, y + dy, w, h]); }) },
+  { name: 'パンダ', desc: 'ささをもぐもぐ、ごろん', seq: mob(8, 280, k => [[RICE,6,0,12,8],[K,6,-1,3,2],[K,15,-1,3,2],[K,8,3,3,2],[K,13,3,3,2],[RICE,9,3,1,1],[RICE,14,3,1,1],[K,11,6,2,1],
+    [RICE,5,8,14,6],[K,5,8,14,2],[K,3,9,3,4],[K,18,9,3,4],[K,6,14,4,2],[K,14,14,4,2],[LEAF,20,2 + (k % 2),1,8],[LEAF,21,2 + (k % 2),2,1],[LEAF,21,5 + (k % 2),2,1]]) },
+  { name: 'コウモリ', desc: 'パタパタ、ひらひら', seq: mob(8, 150, k => { const y = [0, -2, -1, 1][k % 4], up = k % 2;
+    return [[BAT,9,4 + y,6,6],[BAT,9,2 + y,2,2],[BAT,13,2 + y,2,2],[RED,10,6 + y,1,1],[RED,13,6 + y,1,1],
+      ...(up ? [[BAT,1,1 + y,8,3],[BAT,15,1 + y,8,3],[BAT,0,0 + y,2,2],[BAT,22,0 + y,2,2]] : [[BAT,1,6 + y,8,3],[BAT,15,6 + y,8,3],[BAT,0,8 + y,2,2],[BAT,22,8 + y,2,2]])]; }) },
+  { name: 'ゆきだるま', desc: 'ゆきの玉を、ぽいっ', seq: mob(8, 240, k => [[RICE,8,0,8,6],[K,9,2,2,2],[K,13,2,2,2],[CARROT,11,4,4,1],[RICE,6,6,12,10],[K,11,8,2,2],[K,11,12,2,2],[STICK,3,7 - (k % 2) * 2,3,1],[STICK,18,7,4,1],
+    ...(k > 3 ? [[RICE, 22 + (k - 4) * 2, 4 - (k - 4), 2, 2]] : []), ...flake(-3, -6 + k * 2)]) },
+  { name: 'ドラゴン', desc: 'つばさをひろげて、ガオー', seq: mob(8, 240, k => { const up = k % 2;
+    return [[DRAGON,5,5,12,6],[DRAGON,15,1,7,6],[K,19,3,1,1],[RED,22,4,2,1],[DRAGON,0,7,5,2],[DRAGON,-3,8,3,1],[DRAGON,7,11,2,3],[DRAGON,13,11,2,3],
+      ...(up ? [[DRAGON,6,-4,8,6],[PURPLE,7,-3,6,4]] : [[DRAGON,6,2,10,3],[PURPLE,7,3,8,1]]), ...(k > 5 ? [[FIRE1,25,3,3,2],[FIRE2,28,3,2,2]] : [])]; }) },
+  { name: 'ふわふわオバケ', desc: 'すーっと、ふわふわうかぶ', seq: mob(8, 240, k => { const y = [0, -1, -2, -3, -2, -1, 0, 1][k];
+    return [[RICE,6,y,12,12],[RICE,6,12 + y,3,2],[RICE,11,12 + y,3,2],[RICE,15,12 + y,3,2],[K,8,4 + y,2,3],[K,14,4 + y,2,3],[K,11,8 + y,2,2],[STEAM,18,2 + y,1,8]].concat(k > 5 ? [[RICE,4,6 + y,2,2],[RICE,18,6 + y,2,2]] : []); }) },
+  { name: '旅の商人', desc: '青いローブで、なにか売ってる', seq: mob(8, 280, k => [[ROBE,7,-3,10,3],[ROBE,5,0,14,1],[MG_SKIN,8,1,8,6],[K,9,3,2,1],[K,13,3,2,1],[K,11,5,2,1],[ROBE,6,7,12,9],[GOLD,6,10,12,1],
+    [MG_SKIN,4 + (k % 2),9,2,2],[BOX,0,10,5,4],[GEM,1,9,2,2],[GOLD,3,9,1,1], ...(k > 4 ? spark(2, 4) : [])]) },
+  { name: 'さかな', desc: 'ぴちぴち、ジャンプ', seq: mob(8, 180, k => { const y = [8, 4, 1, 0, 1, 4, 8, 10][k];
+    return [[FISH,6,y,10,5],[FISH,16,y + 1,3,3],[FISH,19,y,2,5],[K,8,y + 1,1,1],[RICE,10,y + 2,4,1],[WATER,2,14,20,2],...(k === 6 || k === 7 ? [[WATER,7,12,1,1],[WATER,16,11,1,1]] : [])]; }) },
+  { name: 'オウム', desc: 'まねっこして、おしゃべり', seq: mob(8, 220, k => [[PARROT,8,0,8,8],[GOLD,14,3,4,3],[K,10,2,2,2],[PARROT,6,8,10,6],[SPRINK,4,8 + (k % 2 ? -2 : 0),3,6],[SPRINK,16,8 + (k % 2 ? -2 : 0),3,6],[GOLD,9,14,2,2],[GOLD,13,14,2,2],
+    [STICK,2,16,20,1], ...(k % 4 < 2 ? note(20, -6 - (k % 2) * 2) : [])].map(([c,x,y,w,h]) => [c, x, y - (k % 4 === 0 ? 1 : 0), w, h])) },
+];
+// オレンジのキャラクターから、ぽんっと変身 → 生き物の動き（2回）→ ぽんっとオレンジにもどる
+MOBS.forEach(m => { const a = m.seq[0][0], z = m.seq[m.seq.length - 1][0];
+  m.seq = [[fig(), 500], [fig({ eyes: 'closed', extra: poof }), 250], [[...a, ...poof.slice(0, 3)], 200], ...m.seq, ...m.seq, [[...z, ...poof], 250]]; });
+
+window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS, ...MOVES2, ...MOVES3, ...DRESSES, ...BLOCKS, ...MOBS];
 })();
 (function ccTyping() {
   const svgs = Array.from(document.querySelectorAll('svg.cc-anim'));
@@ -829,7 +1023,7 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
       rect(6, s * 2 + 3, 2, 1, COLOR.K) + rect(16, s * 2 + 3, 2, 1, COLOR.K) +
       zee(22, -1 - k) + (k >= 2 ? zee(26, -6 - (k - 2)) : '') + '</g>');
   }
-  // 朝7時〜夜0時は、最初にパソコンを1回打ったあとは、01〜120 の動きからずっとランダムに出す。動き（見本ページの番号）からランダムに1つを1回だけ入れる
+  // 朝7時〜夜0時は、最初にパソコンを1回打ったあとは、01〜120・136〜175 の動きからずっとランダムに出す。動き（見本ページの番号）からランダムに1つを1回だけ入れる
   //   入れる動きの絵は svgOf の X0 番から後ろに入れかえて使う
   const TYPE_MS = total * 1000 / 30, EVERY = 1, X0 = svgOf.length;
   let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY, done = 0, last = -1;
