@@ -1038,11 +1038,25 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
   const TYPE_MS = total * 1000 / 30, EVERY = 1, X0 = svgOf.length;
   let mv = null, typeOff = 0, nextAt = TYPE_MS * EVERY, done = 0, last = -1;
   const RUN = Infinity;   // 最初にパソコンを1回打ったあとは、ずっとランダムな動きを続ける
+  // 一度出た動きは、ぜんぶ一周するまで出さない（混ぜた順番で1つずつ出す。一周したら、また混ぜなおす）
+  //   残りの順番はこの端末に覚えておくので、アプリを閉じて開き直しても続きから出る
+  let bag = [];
+  try { const b = JSON.parse(localStorage.getItem('ccMoveBag') || '[]'); if (Array.isArray(b) && b.every(i => Number.isInteger(i) && i >= 0 && i < window.CC_EXTRA.length)) bag = b; } catch (e) {}
+  function nextPick() {
+    if (!bag.length) {
+      bag = window.CC_EXTRA.map((_, i) => i);
+      for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+      if (bag.length > 1 && bag[bag.length - 1] === last) [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];   // 一周のつなぎ目でも同じ動きを続けない
+    }
+    last = bag.pop();
+    try { localStorage.setItem('ccMoveBag', JSON.stringify(bag)); } catch (e) {}
+    return last;
+  }
   function extraId(now) {
     if (!window.CC_EXTRA) return -1;
     if (!mv) {
       if (now < nextAt) return -1;
-      let i; do { i = Math.floor(Math.random() * window.CC_EXTRA.length); } while (i === last); last = i;   // 同じ動きは続けない
+      const i = nextPick();   // 一周するまで同じ動きは出ない
       const seq = window.CC_EXTRA[i].seq;
       svgOf.length = X0;
       seq.forEach(q => svgOf.push('<g transform="translate(5,0)">' + q[0].map(([c, x, y, w, h]) => rect(x, y, w, h, c)).join('') + '</g>'));
