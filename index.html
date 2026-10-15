@@ -63,6 +63,15 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
 /* ときどきまばたき */
 /* キャラクターの下の「Claude Code」「GitHub」の文字を太く */
 .cc-label, .gh-label, .op-c > span { font-weight: 700 !important; }
+/* 夜にキャラクターを起こすボタン（自己紹介の画面・小さな起こす画面） */
+#ccIntro .ccx-wake { background: #d97757; color: #fff; border: none; }
+#ccIntro .ccx-wake[hidden], #ccWakePop[hidden] { display: none !important; }
+#ccWakePop { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; padding: 20px; }
+#ccWakePop .ccw-box { background: #0b1120; border: 3px double #f8f8f8; border-radius: 6px; padding: 16px; max-width: 300px; color: #f8f8f8; font: 700 14px/1.7 -apple-system, 'Hiragino Sans', sans-serif; text-align: center; }
+#ccWakePop .ccw-btns { display: flex; gap: 8px; margin-top: 12px; }
+#ccWakePop button { flex: 1; padding: 10px; border-radius: 10px; border: none; font: inherit; cursor: pointer; }
+#ccWakePop .ccw-wake { background: #d97757; color: #fff; }
+#ccWakePop .ccw-close { background: #f8f8f8; color: #0b1120; }
 </style>
 </head>
 <body>
@@ -115,6 +124,7 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
     <div class="ccx-msg"></div>
     <div class="ccx-actions">
       <a class="ccx-btn ccx-link" href="#" target="_blank" rel="noopener">公式ページを見る</a>
+      <button type="button" class="ccx-btn ccx-wake" hidden>おこす</button>
       <button type="button" class="ccx-btn ccx-close">とじる</button>
     </div>
   </div>
@@ -1050,7 +1060,7 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
   function draw(now) {
     let t = (Math.floor(now / (1000 / 30)) - typeOff) % total, id = SEQ[0][0];
     for (const [f, len] of SEQ) { if (t < len) { id = f; break; } t -= len; }
-    if (new Date().getHours() < 7) id = SLEEP0 + Math.floor(now / 480) % 8;   // 夜はおやすみ
+    if (new Date().getHours() < 7 && !window.CC_AWAKE) id = SLEEP0 + Math.floor(now / 480) % 8;   // 夜はおやすみ
     else { const x = extraId(now); if (x >= 0) id = x; }   // ときどき入る動き
     if (id !== shown) { svgs.forEach(s => { s.innerHTML = svgOf[id]; }); shown = id; }
     requestAnimationFrame(draw);
@@ -1134,5 +1144,36 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
 })();
 </script>
 
+<script>
+// =============================================================
+// 夜（0時〜朝7時）にオレンジのキャラクターをタップすると、自己紹介の画面に「おこす」ボタンが出る。
+//   押すと、アプリを閉じるまで起きて、ランダムな動きをする（閉じて開き直すと、また寝る）
+// =============================================================
+(function ccWake() {
+  window.CC_AWAKE = false;
+  const sleeping = () => new Date().getHours() < 7 && !window.CC_AWAKE;
+  const intro = document.getElementById('ccIntro');
+  if (intro) {
+    const box = intro.querySelector('.ccx-box'), btn = intro.querySelector('.ccx-wake');
+    if (!box || !btn) return;
+    const sync = () => { btn.hidden = !(intro.classList.contains('show') && box.dataset.who === 'cc' && sleeping()); };
+    new MutationObserver(sync).observe(intro, { attributes: true, subtree: true, attributeFilter: ['class', 'data-who'] });
+    btn.addEventListener('click', () => { window.CC_AWAKE = true; btn.hidden = true; intro.querySelector('.ccx-close').click(); });
+    return;
+  }
+  // 自己紹介の画面がないアプリ：寝ているときにタップすると、小さな「おこす」画面を出す
+  const a = document.querySelector('.cc-mascot');
+  if (!a) return;
+  const pop = document.createElement('div');
+  pop.id = 'ccWakePop'; pop.hidden = true;
+  pop.innerHTML = '<div class="ccw-box"><p>オレンジのキャラクターは、いま ねています… zzz</p>' +
+    '<div class="ccw-btns"><button type="button" class="ccw-wake">おこす</button><button type="button" class="ccw-close">とじる</button></div></div>';
+  document.body.appendChild(pop);
+  a.addEventListener('click', e => { if (!sleeping()) return; e.preventDefault(); pop.hidden = false; });
+  pop.querySelector('.ccw-wake').addEventListener('click', () => { window.CC_AWAKE = true; pop.hidden = true; });
+  pop.querySelector('.ccw-close').addEventListener('click', () => { pop.hidden = true; });
+  pop.addEventListener('click', e => { if (e.target === pop) pop.hidden = true; });
+})();
+</script>
 </body>
 </html>
