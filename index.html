@@ -72,6 +72,15 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
 #ccWakePop button { flex: 1; padding: 10px; border-radius: 10px; border: none; font: inherit; cursor: pointer; }
 #ccWakePop .ccw-wake { background: #d97757; color: #fff; }
 #ccWakePop .ccw-close { background: #f8f8f8; color: #0b1120; }
+/* 「動画を見る」ボタンと動画の画面 */
+#ccIntro .ccx-actions { flex-wrap: wrap; }
+#ccIntro .ccx-movie { background: #2a3d6b; color: #fff; border: none; }
+#ccIntro .ccx-movie[hidden] { display: none !important; }
+#ccMovie { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#ccMovie[hidden] { display: none !important; }
+#ccMovie .ccm-box { width: 100%; max-width: 420px; display: grid; gap: 10px; }
+#ccMovie video { width: 100%; pointer-events: none; aspect-ratio: 1; background: #000; border: 3px double #f8f8f8; border-radius: 6px; }
+#ccMovie .ccm-close { padding: 11px; border-radius: 10px; border: none; background: #f8f8f8; color: #0b1120; font: 700 14px -apple-system, "Hiragino Sans", sans-serif; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -124,6 +133,7 @@ footer{color:var(--muted);font-size:.75rem;text-align:right}
     <div class="ccx-msg"></div>
     <div class="ccx-actions">
       <a class="ccx-btn ccx-link" href="#" target="_blank" rel="noopener">公式ページを見る</a>
+      <button type="button" class="ccx-btn ccx-movie">動画を見る</button>
       <button type="button" class="ccx-btn ccx-wake" hidden>おこす</button>
       <button type="button" class="ccx-btn ccx-close">とじる</button>
     </div>
@@ -1187,6 +1197,33 @@ window.CC_EXTRA = [...MOVES, ...SLEEPS, ...FOODS, ...FOODS2, ...FOODS3, ...WAYS,
   pop.querySelector('.ccw-wake').addEventListener('click', () => { window.CC_AWAKE = true; pop.hidden = true; });
   pop.querySelector('.ccw-close').addEventListener('click', () => { pop.hidden = true; });
   pop.addEventListener('click', e => { if (e.target === pop) pop.hidden = true; });
+})();
+</script>
+<script>
+// =============================================================
+// 自己紹介の画面（オレンジのキャラクター）の「動画を見る」ボタン：2つの動画からランダムに1つを流す
+//   movies/block-day.mp4（昼のブロックの世界）・movies/block-night.mp4（夜のブロックの世界）
+// =============================================================
+(function ccMovie() {
+  const intro = document.getElementById('ccIntro'); if (!intro) return;
+  const box = intro.querySelector('.ccx-box'), btn = intro.querySelector('.ccx-movie'); if (!box || !btn) return;
+  const MOVIES = ['movies/block-day.mp4', 'movies/block-night.mp4'];
+  let last = -1;
+  const pop = document.createElement('div'); pop.id = 'ccMovie'; pop.hidden = true;
+  pop.innerHTML = '<div class="ccm-box"><video playsinline preload="none" disablepictureinpicture></video><button type="button" class="ccm-close">とじる</button></div>';
+  document.body.appendChild(pop);
+  const video = pop.querySelector('video');
+  const close = () => { video.pause(); pop.hidden = true; };
+  // 「動画を見る」はオレンジのキャラクターの自己紹介のときだけ出す（GitHub のときは出さない）
+  const sync = () => { btn.hidden = !(intro.classList.contains('show') && box.dataset.who === 'cc'); };
+  new MutationObserver(sync).observe(intro, { attributes: true, subtree: true, attributeFilter: ['class', 'data-who'] });
+  btn.addEventListener('click', () => {
+    let i; do { i = Math.floor(Math.random() * MOVIES.length); } while (i === last && MOVIES.length > 1);   // 前と同じ動画は続けない
+    last = i; video.src = MOVIES[i]; pop.hidden = false; video.currentTime = 0; video.play().catch(() => {});
+  });
+  pop.querySelector('.ccm-close').addEventListener('click', close);
+  pop.addEventListener('click', e => { if (e.target === pop) close(); });
+  video.addEventListener('ended', close);
 })();
 </script>
 </body>
